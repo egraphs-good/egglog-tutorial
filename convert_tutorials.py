@@ -160,7 +160,7 @@ def blocks_to_html(blocks: List[Tuple[str, str]]) -> str:
 
 def get_tutorial_files(tutorial_dir: Path) -> List[Path]:
     """Get all .egg files in tutorial directory, sorted"""
-    egg_files = list(tutorial_dir.glob("*.egg"))
+    egg_files = list(tutorial_dir.glob("0*.egg"))
     return sorted(egg_files)
 
 
