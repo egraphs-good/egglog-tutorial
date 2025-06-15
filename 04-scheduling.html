@@ -148,7 +148,7 @@
 (<span class="keyword">let</span> zero (bigrat (bigint 0) (bigint 1)))
 (<span class="keyword">let</span> one (bigrat (bigint 1) (bigint 1)))
 (<span class="keyword">let</span> two (bigrat (bigint 2) (bigint 1)))</code></pre>
-<p>Different from lesson 3, we organize our rules into ""rulesets"
+<p>Different from lesson 3, we organize our rules into "rulesets"
  A ruleset is exactly what it sounds like; a set of rules.
  We can declare rulesets using the <code>ruleset</code> command.</p>
 <pre><code class="language-egglog">(<span class="keyword">ruleset</span> optimizations)
@@ -256,11 +256,8 @@
          )
     )
 )</code></pre>
-<p>Here we can see how much larger the e-graph is with just one more iteration.</p>
-<pre><code class="language-egglog">(<span class="keyword">print-size</span>)</code></pre>
-<p>And the extra iteration doesn't make a difference for <code>expr</code> specifically.</p>
-<pre><code class="language-egglog">(<span class="keyword">extract</span> expr)</code></pre>
-<p>However, if we had started with a slightly different program to optimize...</p>
+<p>Running more iterations does not help this example per se,
+ but if we had started with a slightly different program to optimize...</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
 (<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)
@@ -284,7 +281,7 @@
 )
 (<span class="keyword">extract</span> expr)
 (<span class="keyword">pop</span>)</code></pre>
-<p>does not give us the optimal program. Instead, we need to <code>repeat 2</code>...</p>
+<p>does not give us the optimal program. Instead, we need to increase the iteration number.</p>
 <pre><code class="language-egglog">(<span class="keyword">push</span>)
 (<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 2
@@ -307,35 +304,30 @@
  in Section 6.) The idea of <code>back-off</code> is that it will ban a rule from applying if that rule grows the
  e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
-(<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)</code></pre>
-<p>For the purpose of this example, we add this rule (again)</p>
-<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x (Num zero)) (Num zero) :<span class="keyword">ruleset</span> optimizations)</code></pre>
-<p>This program creates a cycle in the e-graph that associativity will use to blow up.
- Use the web demo to visualize the cycle.</p>
-<pre><code class="language-egglog">(Mul (Var "x") (Num zero))
-(<span class="keyword">push</span>)
-(<span class="keyword">run</span> optimizations 1)</code></pre>
-<p>If we increase the number of iterations, we can watch the e-graph size rapidly increase.</p>
-<pre><code class="language-egglog">(<span class="keyword">print-size</span> Mul)
-(<span class="keyword">run</span> optimizations 1)
-(<span class="keyword">print-size</span> Mul)
-(<span class="keyword">run</span> optimizations 1)
-(<span class="keyword">print-size</span> Mul)
-(<span class="keyword">run</span> optimizations 1)
-(<span class="keyword">print-size</span> Mul)
-(<span class="keyword">run</span> optimizations 1)
-(<span class="keyword">print-size</span> Mul)
-(<span class="keyword">run</span> optimizations 1)</code></pre>
-<p>In contrast, if we use back-off, we can run many more iterations without getting stuck.
- This will let us apply optimizations that don't rely on associativity in other parts of the e-graph.
- (Of course, in this simplified example, there are no "other parts".)</p>
+<p>Let's go back to this example, and increase the number of iterations slightly.</p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
+    (<span class="keyword">repeat</span> 5
+        (<span class="keyword">seq</span>
+            (saturate (<span class="keyword">run</span> analysis))
+            (<span class="keyword">run</span> optimizations)
+         )
+    )
+)
+(<span class="keyword">print-size</span> Mul)</code></pre>
+<p>At iteration 5, the <code>Mul</code> function has size 582. However, if we bump that to 6,
+ the size of the <code>Mul</code> function will increase to 13285! This is because the associativity
+ is exponential and can easily blow up the e-graph in one iteration.</p>
+<p>This is where the back-off scheduler comes in handy. It will prevent the associativity rule
+ from dominating the equality saturation, and will ban associativity for some iterations so
+ that other rules can catch up.</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)
 (<span class="keyword">run-schedule</span>
     (<span class="keyword">let-scheduler</span> bo (back-off))
-    (<span class="keyword">repeat</span> 25 (<span class="keyword">run-with</span> bo optimizations))
-)</code></pre>
+    (<span class="keyword">repeat</span> 10 (<span class="keyword">run-with</span> bo optimizations))
+)
+(<span class="keyword">print-size</span> Mul)</code></pre>
     </main>
     
     <footer>
