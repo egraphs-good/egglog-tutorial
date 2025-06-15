@@ -11,10 +11,10 @@
 
 ;; Now, let's define some simple expressions.
 
-; expr1 = 2 * (x + 3)
-(let expr1 (Mul (Num 2) (Add (Var "x") (Num 3))))
-; expr2 = 6 + 2 * x
-(let expr2 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+; expr1 = 2 * (x * 3)
+(let expr1 (Mul (Num 2) (Mul (Var "x") (Num 3))))
+; expr2 = 6 * x
+(let expr2 (Mul (Num 6) (Var "x")))
 ;; If you are running the program in the web demo, in the bottom right corner,
 ;; you should see an e-graph with two expressions,
 ;; each corresponding to the two expressions we defined above.
@@ -108,11 +108,38 @@
 
 ;; **Exercises**
 ;;
-;; 1. Define the distributivity rule for multiplication over addition. Find two expressions that 
-;;    can be proven equivalent using this rule.
-;; 2. Write a rule that asserts `x + 0 = x` and `x * 1` = x. Run egglog over the rules we have above and this rule.
-;;    Try to increase the number of iterations. What happens? Why?
-;; 3. Egglog has the `birewrite` keyword, which is similar to `rewrite`, but it allows rewriting
-;;    in both directions. Make the associativity rule above a birewrite rule. Looking at the rules
+;; 1. Define the distributivity rule for multiplication over addition. When you're done, the
+;;    following code should pass.
+;;     ```
+;;     ; expr3 = 2 * (x + 3)
+;;     (let expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
+;;     ; expr4 = 6 + 2 * x
+;;     (let expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+;;     (fail (check (= expr3 expr4)))
+;;     (run 10)
+;;     (check (= expr3 expr4))
+;;     ```
+
+(rewrite (Mul a (Add b c)) (Add (Mul a b) (Mul a c)))
+
+; expr3 = 2 * (x + 3)
+(let expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
+; expr4 = 6 + 2 * x
+(let expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+(fail (check (= expr3 expr4)))
+(run 10)
+(check (= expr3 expr4))
+
+;; 2. Egglog has the `birewrite` keyword, which is similar to `rewrite`, but it allows rewriting
+;;    in both directions. Try making some of the rules above into birewrite rules. Looking at the rules
 ;;    we have defined, when is a birewrite rule useful and when it is not? When is it not 
 ;;    even well-defined?
+
+; A birewrite rule is useful when you would otherwise write out two rewrites.
+(birewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
+
+; A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).
+(birewrite (Mul x y) (Mul y x))
+
+; A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.
+; (birewrite (Mul x (Num 1)) x)
