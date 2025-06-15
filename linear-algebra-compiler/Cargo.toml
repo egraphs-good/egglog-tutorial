@@ -1,0 +1,17 @@
+[package]
+name = "linear-algebra-compiler"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+lalrpop-util = { version = "0.22.2", features = [
+    "lexer",
+] }
+# egglog-experimental = { git = "https://github.com/egraphs-good/egglog-experimental.git", rev = "e2d1833" }
+egglog-experimental = { path = "../../../egglog-experimental" }
+regex = "1.11.1"
+
+[build-dependencies]
+lalrpop = "0.22.2"
+
+[workspace]
