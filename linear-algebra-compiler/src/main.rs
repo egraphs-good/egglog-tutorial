@@ -3,7 +3,7 @@ use std::io::Read;
 use egglog_experimental::ast::Command;
 use egglog_experimental::scheduler::Matches;
 use egglog_experimental::util::IndexMap;
-use egglog_experimental::{self as egglog, add_scheduler_builder, CustomCostModel};
+use egglog_experimental::{self as egglog, add_scheduler_builder, DynamicCostModel};
 use egglog_experimental::{
     ast::Literal,
     extract::{CostModel},
@@ -127,7 +127,7 @@ fn main() {
     let output = core_bindings.bindings.last().unwrap();
     let (sort, value) = egraph.eval_expr(&var(&output.var)).unwrap();
     let (termdag, term, cost) = egraph
-        .extract_value_with_cost_model(&sort, value, CustomCostModel)
+        .extract_value_with_cost_model(&sort, value, DynamicCostModel)
         .unwrap();
     eprintln!("Cost after optimization: {cost}");
     let bindings = termdag_to_bindings(core_bindings.declares, &termdag, &term);

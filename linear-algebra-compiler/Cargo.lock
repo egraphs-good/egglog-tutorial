@@ -418,6 +418,7 @@ dependencies = [
 [[package]]
 name = "egglog-experimental"
 version = "0.1.0"
+source = "git+https://github.com/egraphs-good/egglog-experimental.git?rev=202078f#202078fee12499f0160293f172546548f909b3e3"
 dependencies = [
  "egglog",
  "lazy_static",
