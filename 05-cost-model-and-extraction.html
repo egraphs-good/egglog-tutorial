@@ -168,8 +168,8 @@
      (Num 1)        \\ cost = 1  (from Num) + 1  (from 1)   = 2
  )
 </code></pre>
-<p>We can use the <code>extract</code> command to extract the lowest cost variant of the term
- But it just gives the version we just defined for now</p>
+<p>We can use the <code>extract</code> command to extract the lowest cost variant of the term.
+ For now it gives the only version that we just defined</p>
 <pre><code class="language-egglog">(<span class="keyword">extract</span> expr)</code></pre>
 <p>Let's introduces more variants with rewrites</p>
 <pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x (Num 2)) (Add x x))
@@ -177,7 +177,7 @@
 (<span class="keyword">run</span> 1)
 
 (<span class="keyword">extract</span> expr)</code></pre>
-<p>It now extracts the lower cost variant that correspondes to x + x + 1, which is equivalent to the original term.
+<p>It now extracts the lower cost variant that correspondes to <code>x + x + 1</code>, which is equivalent to the original term.
  If there are multiple variants of the same lowest cost, <code>extract</code> break ties arbitrarily.</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)</code></pre>
 <p><strong>Setting custom cost for e-nodes</strong></p>

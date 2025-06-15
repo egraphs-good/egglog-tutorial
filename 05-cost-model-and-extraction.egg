@@ -43,8 +43,8 @@
 ;;     )
 ;;
 
-;; We can use the `extract` command to extract the lowest cost variant of the term
-;; But it just gives the version we just defined for now
+;; We can use the `extract` command to extract the lowest cost variant of the term.
+;; For now it gives the only version that we just defined
 
 (extract expr)
 
@@ -56,7 +56,7 @@
 
 (extract expr)
 
-;; It now extracts the lower cost variant that correspondes to x + x + 1, which is equivalent to the original term.
+;; It now extracts the lower cost variant that correspondes to `x + x + 1`, which is equivalent to the original term.
 ;; If there are multiple variants of the same lowest cost, `extract` break ties arbitrarily.
 
 (pop)
