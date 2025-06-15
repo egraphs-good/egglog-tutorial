@@ -1,3 +1,9 @@
+#![allow(dead_code)]
+#![allow(unreachable_code)]
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+
 use std::io::Read;
 
 use egglog_experimental::ast::Command;
@@ -38,14 +44,14 @@ fn main() {
         }
     };
 
-    // Problem  1: run the egglog program in defn.egg
+    // Problem  1: run defn.egg
     let mut egraph = new_experimental_egraph();
     todo!("Problem 1");
 
     // Problem  2:
     //
-    // For each variable in the declaration, bind the variable x to
-    // a corresponding (MVar x) and (SVar x)
+    // For each variable declaration in the input program,
+    // bind the egglog variable x to either (MVar x) or (SVar x)
     //
     // For each matrix declaration, additionally insert its dimension
     // information into the "MatrixDim" relation in the E-graph:
@@ -55,7 +61,7 @@ fn main() {
     for decl in core_bindings.declares.iter() {
         let x = &decl.var;
         if let Type::Matrix { nrows, ncols } = decl.ty {
-            todo!("problem 2")
+            todo!("Problem 2")
         } else {
             todo!("Problem 2")
         }
@@ -63,7 +69,8 @@ fn main() {
 
     // Problem  3:
     //
-    // For each binding, bind the variable x to its corresponding definitions.
+    // For each variable assignment in the input program,
+    // bind the egglog variable x to its corresponding expression.
     //
     // We have provided [`to_egglog_expr`] function that converts a [`CoreExpr`]
     // to an egglog expression [`egglog::ast::Expr`]
@@ -87,7 +94,7 @@ fn main() {
     // The extracted program is a directed acyclic graph (DAG) and has type [`TermDag`]` and [`Term`].
     // We have provided the method [`termdag_to_bindings`] to convert to [`CoreBindings`].
     let output = core_bindings.bindings.last().unwrap();
-    let bindings: CoreBindings = todo!("Problem 5");;
+    let bindings: CoreBindings = todo!("Problem 5");
 
     // Print the optimized bindings
     println!("{bindings}");
@@ -102,13 +109,13 @@ fn main() {
 //
 // Fill in the blanks for the [`FirstNScheduler`]. FirstNScheduler
 // applies at most `n` matches of a rule in each iteration. Compared
-// to the default scheduler, it allows the E-graph grows more gently.
+// to the default scheduler, it allows the E-graph to grow more gently.
 //
-// Add this scheduler to egglog_experimental with
+// Add this scheduler to the global scheduler list in egglog-experimental with
 //
 //     add_scheduler_builder("first-n".into(), Box::new(new_first_n_scheduler));
 //
-// Update the schedule so that the optimization ruleset uses this scheduler.
+// Update the `run-schedule` so that the optimization ruleset uses this scheduler.
 pub fn new_first_n_scheduler(_egraph: &EGraph, exprs: &[egglog::ast::Expr]) -> Box<dyn Scheduler> {
     assert!(exprs.len() == 1);
     let egglog::ast::Expr::Lit(_, Literal::Int(n)) = exprs[0] else {
@@ -135,7 +142,7 @@ impl Scheduler for FirstNScheduler {
 // The cost model, named [`AstDepthCostModel`] assigns the depth of an AST as its cost,
 // so an extractor using this cost model will extract a term with the smallest depth.
 //
-// Use this cost model in our extractor
+// Use this cost model in our extractor.
 pub struct AstDepthCostModel;
 
 pub type C = usize;
