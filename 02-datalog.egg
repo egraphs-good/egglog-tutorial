@@ -231,7 +231,7 @@
 ))
 (pop)
 
-;; **(universe relation)** 
+;; **(Universe relation)** 
 ;; One of the rewrite rules that we cannot make a `birewrite` in lesson 1 is the rule
 ;; `(rewrite (Add x (Num 0)) x)`. This is because it is not clear what `x` is bound to 
 ;; in the inverse rule, `(rewrite x (Add x (Num 0)))`. Therefore, defining this rule in egglog
