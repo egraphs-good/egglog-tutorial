@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title># E-class analysis - egglog tutorial</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+        }
+        
+        .tutorial-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .nav-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .tutorial-nav h1 {
+            margin: 0 0 0.5rem 0;
+            color: #ecf0f1;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-links .current {
+            background-color: #3498db;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        p {
+            margin: 1rem 0;
+            text-align: justify;
+        }
+        
+        code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* egglog syntax highlighting */
+        .keyword { color: #e74c3c; font-weight: bold; }
+
+        
+        .language-egglog {
+            color: #2c3e50;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .nav-links {
+                font-size: 0.9rem;
+            }
+            
+            .nav-links a, .nav-links .current {
+                margin: 0 0.2rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="tutorial-nav">
+        <div class="nav-container">
+            <h1>Tutorial for egglog</h1>
+            <div class="nav-links">
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <span class="current">03 Analysis</span> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+            </div>
+        </div>
+    </nav>
+    
+    
+    <main>
+        <h1># E-class analysis</h1>
+        <p>In this lesson, we learn how to combine the power of equality saturation and Datalog.
+ We will show how we can define program analyses using Datalog-style deductive reasoning,
+ how EqSat-style rewrite rules can make the program analyses more accurate, and how 
+ accurate program analyses can enable more powerful rewrites.</p>
+<p>Our first example will continue with the <code>path</code> example in lesson 2.
+ In this case, there is a path from <code>e1</code> to <code>e2</code> if <code>e1</code> is less than or equal to <code>e2</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">datatype</span> Expr
+    ; in this example we use big 🐀 to represent numbers
+    ; you can find a list of primitive types in the standard library in `src/<span class="keyword">sort</span>`
+    (Num BigRat)
+    (Var String)
+    (Add Expr Expr)
+    (Mul Expr Expr)
+    (Div Expr Expr))</code></pre>
+<p>Let's define some BigRat constants that will be useful later.</p>
+<pre><code class="language-egglog">(<span class="keyword">let</span> zero (bigrat (bigint 0) (bigint 1)))
+(<span class="keyword">let</span> one (bigrat (bigint 1) (bigint 1)))
+(<span class="keyword">let</span> two (bigrat (bigint 2) (bigint 1)))</code></pre>
+<p>We define a less-than-or-equal-to relation between two expressions.
+ <code>(leq a b)</code> means that <code>a &lt;= b</code> for all possible values of variables.</p>
+<pre><code class="language-egglog">(<span class="keyword">relation</span> leq (Expr Expr))</code></pre>
+<p>We define rules to deduce the <code>leq</code> relation. We start with transitivity of <code>leq</code>:</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (leq e1 e2)
+    (leq e2 e3)
+) (
+    (leq e1 e3)
+))</code></pre>
+<p>We can define a few axioms for deciding when one expression is less than or equal to another.</p>
+<p>Base case for <code>leq</code> for <code>Num</code>:</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (= e1 (Num n1))
+    (= e2 (Num n2))
+    (<= n1 n2)
+) (
+    (leq e1 e2)
+))</code></pre>
+<p>Base case for <code>leq</code> for <code>Var</code>:</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (= v (Var x))
+) (
+    (leq v v)
+))</code></pre>
+<p>Recursive case for <code>leq</code> for <code>Add</code>:</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (= e1 (Add e1a e1b))
+    (= e2 (Add e2a e2b))
+    (leq e1a e2a)
+    (leq e1b e2b)
+) (
+    (leq e1 e2)
+))</code></pre>
+<p>Note that we have not defined any rules for multiplication. This would require a more complex
+ analysis on the positivity of the expressions, which we will cover later.</p>
+<p>On the other hand, these rules by themselves are pretty weak. For example, they cannot deduce <code>x + 1 &lt;= 2 + x</code>.
+ But EqSat-style axiomatic rules make these rules more powerful:</p>
+<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Add x (Add y z)) (Add (Add x y) z))
+(<span class="keyword">birewrite</span> (Mul x (Mul y z)) (Mul (Mul x y) z))
+(<span class="keyword">rewrite</span> (Add x y) (Add y x))
+(<span class="keyword">rewrite</span> (Mul x y) (Mul y x))
+(<span class="keyword">rewrite</span> (Mul x (Add y z)) (Add (Mul x y) (Mul x z)))
+(<span class="keyword">rewrite</span> (Add x (Num zero)) x)
+(<span class="keyword">rewrite</span> (Mul x (Num one)) x)
+(<span class="keyword">rewrite</span> (Add (Num a) (Num b)) (Num (+ a b)))
+(<span class="keyword">rewrite</span> (Mul (Num a) (Num b)) (Num (* a b)))</code></pre>
+<p>To check our rules</p>
+<pre><code class="language-egglog">(<span class="keyword">let</span> expr1 (Add (Var "y") (Add (Num two) (Var "x"))))
+(<span class="keyword">let</span> expr2 (Add (Add (Add (Var "x") (Var "y")) (Num one)) (Num two)))
+
+(<span class="keyword">fail</span> (<span class="keyword">check</span> (leq e1 e2)))
+(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+(<span class="keyword">check</span> (leq e1 e2)) ; should pass</code></pre>
+<p>A useful special case of the leq analysis is if an expression is upper bounded 
+ or lower bounded by certain numbers, i.e., interval analysis:</p>
+<pre><code class="language-egglog">(<span class="keyword">function</span> upper-bound (Expr) BigRat :merge (min old new))
+(<span class="keyword">function</span> lower-bound (Expr) BigRat :merge (max old new))</code></pre>
+<p>In the above functions, unlike <code>leq</code>,we define upper bound and lower bound as functions from
+ expressions to a unique number.
+ This is because we are always interested in the tightest upper bound
+ and lower bounds, so </p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (leq e (Num n))
+) (
+    (<span class="keyword">set</span> (upper-bound e) n)
+))
+
+(<span class="keyword">rule</span> (
+    (leq (Num n) e)
+) (
+    (<span class="keyword">set</span> (lower-bound e) n)
+))</code></pre>
+<p>We can define more specific rules for obtaining the upper and lower bounds of an expression
+ based on the upper and lower bounds of its children.</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (= e (Add e1 e2))
+    (= (upper-bound e1) u1)
+    (= (upper-bound e2) u2)
+) (
+    (<span class="keyword">set</span> (upper-bound e) (+ u1 u2))
+))
+
+(<span class="keyword">rule</span> (
+    (= e (Add e1 e2))
+    (= (lower-bound e1) l1)
+    (= (lower-bound e2) l2)
+) (
+    (<span class="keyword">set</span> (lower-bound e) (+ l1 l2))
+))</code></pre>
+<p>... and the giant rule for multiplication:</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (= e (Mul e1 e2))
+    (= le1 (lower-bound e1))
+    (= le2 (lower-bound e2))
+    (= ue1 (upper-bound e1))
+    (= ue2 (upper-bound e2))
+) (
+    (<span class="keyword">set</span> (lower-bound e)
+         (min (* le1 le2)
+              (min (* le1 ue2)
+              (min (* ue1 le2)
+                   (* ue1 ue2)))))
+    (<span class="keyword">set</span> (upper-bound e)
+         (max (* le1 le2)
+              (max (* le1 ue2)
+              (max (* ue1 le2)
+                   (* ue1 ue2)))))))</code></pre>
+<p>Similarly,</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (= e (Mul x x))
+) (
+    (<span class="keyword">set</span> (lower-bound e) zero)
+))</code></pre>
+<p>The interval analysis is not only useful for numerical tools like <a href="https://herbie.uwplse.org/">Herbie</a>,
+ but it can also guard certain optimization rules, making EqSat-based rewriting more powerful!</p>
+<p>For example, we are interested in non-zero expressions</p>
+<pre><code class="language-egglog">(<span class="keyword">relation</span> non-zero (Expr))
+(<span class="keyword">rule</span> ((< (upper-bound e) zero)) ((non-zero e)))
+(<span class="keyword">rule</span> ((> (lower-bound e) zero)) ((non-zero e)))
+(<span class="keyword">rewrite</span> (Div x x)         (Num one) :<span class="keyword">when</span> ((non-zero x)))
+(<span class="keyword">rewrite</span> (Mul x (Div y x)) y         :<span class="keyword">when</span> ((non-zero x)))</code></pre>
+<p>This non-zero analysis lets us optimize expressions that contain division safely.</p>
+<pre><code class="language-egglog">; 2 * (x / (1 + 2 / 2)) is equivalent to x
+(<span class="keyword">let</span> expr3 (Mul (Num two) (Div (Var "x") (Add (Num one) (Div (Num two) (Num two))))))
+(<span class="keyword">let</span> expr4 (Var "x"))
+(<span class="keyword">fail</span> (<span class="keyword">check</span> (= expr3 expr4)))
+(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+(<span class="keyword">check</span> (= expr3 expr4))
+
+; (x + 1)^2 + 2
+(<span class="keyword">let</span> expr5 (Add (Mul (Add (Var "x") (Num one)) (Add (Var "x") (Num one))) (Num two)))
+(<span class="keyword">let</span> expr6 (Div expr5 expr5))
+(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+(<span class="keyword">check</span> (= expr6 (Num one)))</code></pre>
+<p><strong>Debugging tips!</strong></p>
+<p><code>print-size</code> is used to print the size of a table. If the table name is omitted, it prints the size of every table.
+ This is useful for debugging performance, by seeing how the table sizes evolve as the iteration count increases.</p>
+<pre><code class="language-egglog">(<span class="keyword">print-size</span> leq)
+(<span class="keyword">print-size</span>)</code></pre>
+<p><code>print-function</code> extracts every instance of a constructor, function, or relation in the e-graph.
+ It takes the maximum number of instances to extract as a second argument, so as not to spend time
+ printing millions of rows. <code>print-function</code> is particularly useful when debugging small e-graphs.</p>
+<pre><code class="language-egglog">(<span class="keyword">print-function</span> leq 15)</code></pre>
+<p><code>extract</code> can also take a second argument, which causes it to extract that many different "variants" of the
+ first argument. This is useful when trying to figure out why one e-class is failing to be unioned with another.</p>
+<pre><code class="language-egglog">(<span class="keyword">extract</span> expr3 3)</code></pre>
+<p><strong>Exercises:</strong></p>
+<ol>
+<li>
+<p>One analysis that is frequently useful is free variable sets. While it is possible to simulate "sets" using
+    only functions, egglog provides <em>containers</em> to make this less tedious and more efficient. A container
+    is essentially a value that can store other values; some examples are <code>Set</code>, <code>Map</code>, and <code>Vec</code>.
+    However, before we can construct a container, we have to tell <code>egglog</code> what sort to use inside
+    the container. This is done with an overload of the <code>sort</code> command.
+     <code>(sort FreeVarSet (Set String))</code></p>
+<p>Now, we can construct sets with <code>set-of</code>.
+ <code>(extract (set-of "1" "1"))</code></p>
+<p>We will need a function to store the results of our free variable analysis. We have to use set intersection
+for the merge function, because of rewrites like <code>x / x =&gt; 1</code>.
+ <code>(function FreeVars (Expr) FreeVarSet :merge (set-intersect old new))</code></p>
+<p>Finally, we will need you to write the rules for the free variable analysis. You should have one rule for
+every variant of <code>Expr</code>. Here's an example rule for <code>Add</code>:
+ <code>(rule (
+     (= e (Add a b))
+     (= f (FreeVars a))
+     (= g (FreeVars b))
+ ) (
+     (set (FreeVars e) (set-union f g))
+ ))</code></p>
+</li>
+</ol>
+<p>If everything worked, <code>expr5</code> should only have <code>"x"</code> as a free variable.
+     <code>(run-schedule (saturate (run)))
+     (extract (FreeVars expr3))</code></p>
+    </main>
+    
+    <footer>
+        <p>Generated from <code>03-analysis.egg</code> | <a href="https://github.com/egraphs-good/egglog" target="_blank">The egglog project</a></p>
+    </footer>
+</body>
+</html>

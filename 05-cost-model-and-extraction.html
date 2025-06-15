@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title># Extraction and Cost - egglog tutorial</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+        }
+        
+        .tutorial-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .nav-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .tutorial-nav h1 {
+            margin: 0 0 0.5rem 0;
+            color: #ecf0f1;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-links .current {
+            background-color: #3498db;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        p {
+            margin: 1rem 0;
+            text-align: justify;
+        }
+        
+        code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* egglog syntax highlighting */
+        .keyword { color: #e74c3c; font-weight: bold; }
+
+        
+        .language-egglog {
+            color: #2c3e50;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .nav-links {
+                font-size: 0.9rem;
+            }
+            
+            .nav-links a, .nav-links .current {
+                margin: 0 0.2rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="tutorial-nav">
+        <div class="nav-container">
+            <h1>Tutorial for egglog</h1>
+            <div class="nav-links">
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <a href="03-analysis.html">03 Analysis</a> | <a href="04-scheduling.html">04 Scheduling</a> | <span class="current">05 Cost Model And Extraction</span>
+            </div>
+        </div>
+    </nav>
+    
+    
+    <main>
+        <h1># Extraction and Cost</h1>
+        <p>In the previous sessions, we have seen examples of defining and analyzing syntactic terms in egglog.
+ After running the rewrite rules, the e-graph may contain a myriad of terms.
+ We often want to pick out one or a handful of terms for further processing.
+ Extraction is the process of picking out individual terms out of the many terms represented by an e-graph.
+ We have seen <code>extract</code> command in the previous sessions, which allows us to extract the optimal term from the e-graph.</p>
+<p>Optimality needs to be defined with regard to some cost model.
+ A cost model is a function that assigns a cost to each term in the e-graph.
+ By default, <code>extract</code> uses AST size as its cost model and picks the term with the smallest cost.</p>
+<p>In this session, we will show several ways of customizing the cost model in egglog.
+ Let's first see a simple example of setting costs with the <code>:cost</code> attribute.</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
+<p>Here we have the same Expr language but annotated with <code>:cost</code> attributes.</p>
+<pre><code class="language-egglog">(<span class="keyword">datatype</span> Expr
+  (Num i64)
+  (Var String)
+  (Add Expr Expr :cost 2)
+  (Mul Expr Expr :cost 10)
+)</code></pre>
+<p>The default cost of a datatype constructor is 1.
+ Intuitively, the additional <code>:cost</code> attributes mark the multiplication operation as more expensive than addition.</p>
+<p>Let's look at how cost is computed for a concrete term in the default tree cost model.</p>
+<pre><code class="language-egglog">; expr = x * 2 + 1
+(<span class="keyword">let</span> expr (Add (Mul (Var "x") (Num 2)) (Num 1)))</code></pre>
+<p>This term has a total cost of 18 because </p>
+<pre><code> (Add               \\ cost = 2  (from Add) + 14 (from left operand) + 2 (from right operand) = 18
+     (Mul           \\ cost = 10 (from Mul) + 2  (from left operand) + 2 (from right operand) = 14
+         (Var "x")  \\ cost = 1  (from Var) + 1  (from "x") = 2
+         (Num 2)    \\ cost = 1  (from Num) + 1  (from 2)   = 2
+     )
+     (Num 1)        \\ cost = 1  (from Num) + 1  (from 1)   = 2
+ )
+</code></pre>
+<p>We can use the <code>extract</code> command to extract the lowest cost variant of the term
+ But it just gives the version we just defined for now</p>
+<pre><code class="language-egglog">(<span class="keyword">extract</span> expr)</code></pre>
+<p>Let's introduces more variants with rewrites</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x (Num 2)) (Add x x))
+
+(<span class="keyword">run</span> 1)
+
+(<span class="keyword">extract</span> expr)</code></pre>
+<p>It now extracts the lower cost variant that correspondes to x + x + 1, which is equivalent to the original term.
+ If there are multiple variants of the same lowest cost, <code>extract</code> break ties arbitrarily.</p>
+<pre><code class="language-egglog">(<span class="keyword">pop</span>)</code></pre>
+<p><strong>Setting custom cost for e-nodes</strong></p>
+<p>The <code>:cost</code> attribute sets an uniform additional cost to each appearance of corresponding constructor.
+ However, this is not expressive enough to cover the case where additional cost of an operation is not a fixed constant.
+ We can use the <code>set-cost</code> feature provided by <code>egglog-experimental</code> to get more fine-grained control of individual e-node's cost.</p>
+<p>To show how this feature works, we define a toy language of matrices.</p>
+<p><code>with-custom-cost</code> enables this feature for the constructors defined inside</p>
+<pre><code class="language-egglog">(with-custom-cost 
+    (<span class="keyword">datatype</span> Matrix
+        ; A matrix constant with fixed size
+        (MConst i64 i64)
+        ; Matrix multiplication
+        (MMul Matrix Matrix)
+    )
+)</code></pre>
+<p>We also define two analyses for the number of rows and columns</p>
+<pre><code class="language-egglog">(<span class="keyword">function</span> row (Matrix) i64 :no-merge)
+(<span class="keyword">function</span> col (Matrix) i64 :no-merge)
+
+(<span class="keyword">rule</span> (
+    (= x (MConst r c))
+) (
+    (<span class="keyword">set</span> (row x) r)
+    (<span class="keyword">set</span> (col x) c)
+))
+
+(<span class="keyword">rule</span> (
+    (= x (MMul y z))
+    (= r (row y))
+    (= (col y) (row z))
+    (= c (col z))
+) (
+    (<span class="keyword">set</span> (row x) r)
+    (<span class="keyword">set</span> (col x) c)
+))</code></pre>
+<p>Now we define the cost of matrix multiplication as a product of the dimensions</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> (
+    (MMul y z)
+    (= r (row y))
+    (= m (col y))
+    (= c (col z))
+) (
+    (<span class="keyword">set</span>-cost (MMul y z) (* r (* m c)))
+))</code></pre>
+<p>Let's optimize matrix multiplication with this cost model</p>
+<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (MMul x (MMul y z)) (MMul (MMul x y) z))
+
+(<span class="keyword">let</span> Mexpr (MMul (MMul (MConst 64 8) (MConst 8 256)) (MConst 256 2)))
+
+(<span class="keyword">run</span> 5)</code></pre>
+<p>Thanks to our cost model, egglog is able to extract the equivalent program with lowest cost using the dimension information we provided: </p>
+<pre><code class="language-egglog">; (MMul (MConst 64 8) (MMul (MConst 8 256) (MConst 256 2)))
+(<span class="keyword">extract</span> Mexpr)</code></pre>
+<p>For advanced users who want to further customize the cost model, it is possible to use define your own cost model in Rust
+ using the interface egglog provides.
+ Indeed, the <code>set-cost</code> feature demonstrated here is implemented outside of the core egglog codebase and
+  uses the extensible cost model interface.</p>
+<p>We will show how to implement a simple cost model in Rust later.</p>
+    </main>
+    
+    <footer>
+        <p>Generated from <code>05-cost-model-and-extraction.egg</code> | <a href="https://github.com/egraphs-good/egglog" target="_blank">The egglog project</a></p>
+    </footer>
+</body>
+</html>

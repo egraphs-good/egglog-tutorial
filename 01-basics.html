@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title># Equality Saturation - egglog tutorial</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+        }
+        
+        .tutorial-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .nav-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .tutorial-nav h1 {
+            margin: 0 0 0.5rem 0;
+            color: #ecf0f1;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-links .current {
+            background-color: #3498db;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        p {
+            margin: 1rem 0;
+            text-align: justify;
+        }
+        
+        code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* egglog syntax highlighting */
+        .keyword { color: #e74c3c; font-weight: bold; }
+
+        
+        .language-egglog {
+            color: #2c3e50;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .nav-links {
+                font-size: 0.9rem;
+            }
+            
+            .nav-links a, .nav-links .current {
+                margin: 0 0.2rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="tutorial-nav">
+        <div class="nav-container">
+            <h1>Tutorial for egglog</h1>
+            <div class="nav-links">
+                <span class="current">01 Basics</span> | <a href="02-datalog.html">02 Datalog</a> | <a href="03-analysis.html">03 Analysis</a> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+            </div>
+        </div>
+    </nav>
+    
+    
+    <main>
+        <h1># Equality Saturation</h1>
+        <p>In this tutorial, we will build an optimizer for a subset of linear algebra using egglog.
+ We will start by optimizing simple integer arithmetic expressions.
+ Our initial DSL supports constants, variables, addition, and multiplication.</p>
+<pre><code class="language-egglog">(<span class="keyword">datatype</span> Expr
+  (Num i64)
+  (Var String)
+  (Add Expr Expr)
+  (Mul Expr Expr))</code></pre>
+<p>Now, let's define some simple expressions.</p>
+<pre><code class="language-egglog">; expr1 = 2 * (x + 3)
+(<span class="keyword">let</span> expr1 (Mul (Num 2) (Add (Var "x") (Num 3))))
+; expr2 = 6 + 2 * x
+(<span class="keyword">let</span> expr2 (Add (Num 6) (Mul (Num 2) (Var "x"))))</code></pre>
+<p>If you are running the program in the web demo, in the bottom right corner,
+ you should see an e-graph with two expressions,
+ each corresponding to the two expressions we defined above.</p>
+<p>We can use the <code>extract</code> command to print the results of expressions in <code>egglog</code>..</p>
+<pre><code class="language-egglog">(<span class="keyword">extract</span> "Hello, world!") ; prints Hello, world!
+(<span class="keyword">extract</span> 42) ;; prints 42
+(<span class="keyword">extract</span> expr1) ;; prints (Mul (Num 2) (Add (Var "x") (Num 3)))
+(<span class="keyword">extract</span> expr2) ;; prints (Add (Num 6) (Mul (Num 2) (Var "x")))</code></pre>
+<p>The <code>extract</code> command does more than printing. We will see the power of <code>extract</code> 
+ once we get into program optimization.</p>
+<p>We can use the <code>check</code> commands to check properties of our e-graph.</p>
+<pre><code class="language-egglog">(<span class="keyword">check</span> (= expr1 (Mul x y)))</code></pre>
+<p>This checks if <code>expr1</code> is equivalent to some expression <code>(Mul x y)</code>, where <code>x</code> and <code>y</code> are
+ variables that can be mapped to any expression in the e-graph.</p>
+<p>Checks can fail. For example the following check fails because <code>expr1</code> is not equivalent to
+ <code>(Add x y)</code> for any <code>x</code> and <code>y</code> in the e-graph.</p>
+<pre><code> ; (check (= expr1 (Add x y)))
+</code></pre>
+<p>Let us define some rewrite rules over our small DSL.</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Add x y) (Add y x))</code></pre>
+<p>This rule asserts that addition is commutative. More concretely, this rules says, if the e-graph
+ contains expressions of the form <code>(Add x y)</code>, then the e-graph should also contain the
+ expression <code>(Add y x)</code>, and they should be equivalent.</p>
+<p>Similarly, we can define the associativity rule for addition.</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Add x (Add y z)) (Add (Add x y) z))</code></pre>
+<p>This rule says, if the e-graph contains expressions of the form <code>(Add x (Add y z))</code>, then the e-graph should also contain
+ the expression <code>(Add (Add x y) z)</code>, and they should be equivalent.</p>
+<p>There are two subtleties to rules in egglog</p>
+<ol>
+<li>
+<p>Defining a rule is different from running it. The following check would fail at this point
+    because the commutativity rule has not been run.</p>
+<p><code>(check (= expr1 (Mul (Num 2) (Add (Num 3) (Var "x")))))</code></p>
+</li>
+<li>
+<p>Rules are not instantiated for every possible term; they are only instantiated for terms that are
+    in the e-graph. For instance, even if we run the commutativity rule above, the following check would 
+    still fail because the e-graph does not contain  the term <code>(Add (Num -2) (Num 2))</code> (or <code>(Add (Num 2) (Num -2))</code>).</p>
+<p><code>(check (= (Add (Num -2) (Num 2)) (Add (Num 2) (Num -2))))</code></p>
+</li>
+</ol>
+<p>Let's also define commutativity and associativity for multiplication.</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x y) (Mul y x))
+(<span class="keyword">rewrite</span> (Mul x (Mul y z)) (Mul (Mul x y) z))</code></pre>
+<p><code>egglog</code> also defines a set of built-in functions over the primitive types, such as <code>+</code> and <code>*</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">extract</span> (+ 1 2))</code></pre>
+<p><code>egglog</code> supports operator overloading, so the same operator can be used with different types.</p>
+<pre><code class="language-egglog">(<span class="keyword">extract</span> (+ "1" "2"))
+(<span class="keyword">extract</span> (+ 1.0 2.0))</code></pre>
+<p>With primitives, we can define rewrite rules that talk about the semantics of operators.
+ The following rules show constant folding over addition and multiplication.</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Add (Num a) (Num b))
+         (Num (+ a b)))
+(<span class="keyword">rewrite</span> (Mul (Num a) (Num b))
+         (Num (* a b)))</code></pre>
+<p>While we have defined several rules, the e-graph has not changed since we inserted the two
+ expressions. To run rules we have defined so far, we can use the <code>run</code> command.</p>
+<pre><code class="language-egglog">(<span class="keyword">run</span> 10)</code></pre>
+<p>This tells <code>egglog</code> to run our rules for 10 iterations. More precisely, egglog runs the following pseudo code:</p>
+<pre><code> G = currentEgraph()
+ for i in 1..10:
+   for each rule r:
+     ms = r.find_matches(G)
+     for m in ms:
+       G = G.apply_rule(r, m)
+     G = rebuild(G)
+</code></pre>
+<p>In other words, <code>egglog</code> computes all the matches for one iteration before making any
+ updates to the e-graph. This is in contrast to an evaluation model where rules are immediately
+ applied and the matches are obtained on demand over a changing e-graph.</p>
+<p>If you are using the web demo, after running the rules, you should see the e-graph has grown
+ a little bit, and that <code>(Mul (Num 2) (Add (Var "x") (Num 3)))</code> and <code>(Add (Num 6) (Mul (Num 2) 
+ (Var "x")))</code> are in the same E-class. In fact, we can check that</p>
+<pre><code class="language-egglog">(<span class="keyword">check</span> (= expr1 expr2))</code></pre>
+<p><strong>Exercises</strong></p>
+<ol>
+<li>Define the distributivity rule for multiplication over addition. Find two expressions that 
+    can be proven equivalent using this rule.</li>
+<li>Write a rule that asserts <code>x + 0 = x</code> and <code>x * 1</code> = x. Run egglog over the rules we have above and this rule.
+    Try to increase the number of iterations. What happens? Why?</li>
+<li>Egglog has the <code>birewrite</code> keyword, which is similar to <code>rewrite</code>, but it allows rewriting
+    in both directions. Make the associativity rule above a birewrite rule. Looking at the rules
+    we have defined, when is a birewrite rule useful and when it is not? When is it not 
+    even well-defined?</li>
+</ol>
+    </main>
+    
+    <footer>
+        <p>Generated from <code>01-basics.egg</code> | <a href="https://github.com/egraphs-good/egglog" target="_blank">The egglog project</a></p>
+    </footer>
+</body>
+</html>

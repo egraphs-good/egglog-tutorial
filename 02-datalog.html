@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title># Datalog - egglog tutorial</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+        }
+        
+        .tutorial-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .nav-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .tutorial-nav h1 {
+            margin: 0 0 0.5rem 0;
+            color: #ecf0f1;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-links .current {
+            background-color: #3498db;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        p {
+            margin: 1rem 0;
+            text-align: justify;
+        }
+        
+        code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* egglog syntax highlighting */
+        .keyword { color: #e74c3c; font-weight: bold; }
+
+        
+        .language-egglog {
+            color: #2c3e50;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .nav-links {
+                font-size: 0.9rem;
+            }
+            
+            .nav-links a, .nav-links .current {
+                margin: 0 0.2rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="tutorial-nav">
+        <div class="nav-container">
+            <h1>Tutorial for egglog</h1>
+            <div class="nav-links">
+                <a href="01-basics.html">01 Basics</a> | <span class="current">02 Datalog</span> | <a href="03-analysis.html">03 Analysis</a> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+            </div>
+        </div>
+    </nav>
+    
+    
+    <main>
+        <h1># Datalog</h1>
+        <p>Datalog is a relational language for deductive reasoning. In the last lesson, we write our first 
+ equality saturation program in egglog, but you can also write rules for deductive reasoning a la Datalog.
+ In this lesson, we will write several classic Datalog programs in egglog. One of the benifits
+ of egglog being a language for program optimization is that it can talk about terms natively,
+ so in egglog we get Datalog with terms for free.</p>
+<p>In this lesson, we will define multiple relations with the same name,
+ so we use the <code>(push)</code> and <code>(pop)</code> commands to clone and reset the database.
+ Under the hood, <code>(push)</code> clones the current database and pushes it onto a stack,
+ and <code>(pop)</code> resets the database to the top of the stack.</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
+<p>Let's first define relations edge and path.
+ We use <code>(edge a b)</code> to mean the tuple (a, b) is in the <code>edge</code> relation.
+ <code>(edge a b)</code> means there are directed edges from <code>a</code> to <code>b</code>,
+ and we will use it to compute the <code>path</code> relation,
+ where <code>(path a b)</code> means there is a (directed) path from <code>a</code> to <code>b</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">relation</span> edge (i64 i64))
+(<span class="keyword">relation</span> path (i64 i64))</code></pre>
+<p>We can insert edges into our relation by asserting facts:</p>
+<pre><code class="language-egglog">(edge 1 2)
+(edge 2 3)
+(edge 3 4)</code></pre>
+<p>Fact definitions are similar to definitions using <code>(let ..)</code> definitions in the last lesson,
+ in that facts are immediately added to relations.</p>
+<p>Now let's tell egglog how to derive the <code>path</code> relation.</p>
+<p>First, if an edge from a to b exists, then it is already a proof
+ that there exists a path from a to b.</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> ((edge a b))
+      ((path a b)))</code></pre>
+<p>A rule has the form <code>(rule (atom1 atom2 ..) (action1 action2 ..))</code>.</p>
+<p>For the rule we have just defined, the only atom is <code>(path a b)</code>, which asks egglog to search
+ for possible <code>a</code> and <code>b</code>s such that <code>(path a b)</code> is a fact in the database.</p>
+<p>We call the first part the "query" of a rule, and the second part the "body" of a rule.
+ In Datalog terminology, confusingly, the first part is called the "body" of the rule
+ while the second part is called the "head" of the rule. This is because Datalog rules
+ are usually written as <code>head :- body</code>. To avoid confusion, we will refrain from using
+ Datalog terminology.</p>
+<p>The rule above defines the base case of the path relation. The inductive case reads as follows:
+ if we know there is a path from <code>a</code> to <code>b</code>, and there is an edge from <code>b</code> to <code>c</code>, then
+ there is also a path from <code>a</code> to <code>c</code>.
+ This can be expressed as egglog rule below:</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> ((path a b) (edge b c))
+      ((path a c)))</code></pre>
+<p>Again, defining a rule does not mean running it in egglog, which may be a surprise to those familiar with Datalog.
+ The user still needs to run the program.
+ For instance, the following check would fail at this point.</p>
+<pre><code class="language-egglog">(<span class="keyword">fail</span> (<span class="keyword">check</span> (path 1 4)))</code></pre>
+<p>But it passes after we run our rules for 10 iterations.</p>
+<pre><code class="language-egglog">(<span class="keyword">run</span> 10)
+(<span class="keyword">check</span> (path 1 4)) ; this succeeds</code></pre>
+<p>For many deductive rules, we do not know the number of iterations
+ needed to reach a fixpoint. The egglog language provides the <code>saturate</code> scheduling primitive to run the rules until fixpoint.</p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))</code></pre>
+<p>We will cover more details about schedules later in the tutorial.</p>
+<p><strong>Exercises:</strong></p>
+<p>Consider the variant of our last rule:
+ <code>(rule ((path a b) (path b c))
+       ((path a c)))</code>
+ Does this rule compute the same relation as the original rule? How does this rule 
+ compare to the original rule? Hint: it's slow, why?</p>
+<pre><code class="language-egglog">(<span class="keyword">pop</span>) ;; resets egglog
+(<span class="keyword">push</span>)</code></pre>
+<p>Our last example determines whether there is a path from one node to another,
+ but we don't know the details about the path.
+ Let's slightly extend our program to obtain the length of the shortest path between any two nodes.</p>
+<pre><code class="language-egglog">(<span class="keyword">function</span> edge (i64 i64) i64 :no-merge)
+(<span class="keyword">function</span> path (i64 i64) i64 :merge (min old new))</code></pre>
+<p>Here, we use a new keyword called <code>function</code> to define a table that respects the functional dependency.
+ A relation is just a function with output domain <code>Unit</code>.
+ By defining <code>edge</code> and <code>path</code> with <code>function</code>, we can associate a length to each path.</p>
+<p>What happens it the same tuple of a function is mapped to two values?
+ In the case of relation, this is easy: <code>Unit</code> only has one value, so the two values must be identical.
+ But in general, that would be a violation of functional dependency, the property that <code>a = b</code> implies <code>f(a) = f(b)</code>.
+ Egglog allows us to specify how to reconcile two values that are mapped from the same tuple using <em>merge expressions</em>.</p>
+<p>For instance, for <code>path</code>, the merge expression is <code>(min old new)</code>; <code>old</code> and <code>new</code> are two special values in an expression
+ that denotes the current output of the tuple and the output of the new, to-be-inserted value.
+ The merge expression for <code>path</code> says that, when there are two paths from <code>a</code> to <code>b</code> with lengths <code>old</code> and <code>new</code>,
+ we keep the shorter one, i.e., <code>(min old new)</code>.</p>
+<p>For <code>edge</code>, we can define the merge expression the same as <code>path</code>, which means that we only keep the shortest edge
+ if there are multiple edges. But we can also assert that <code>edge</code> does not have a merge expression using <code>no-merge</code>. 
+ This means we don't expect there will be multiple edges between two nodes. More generally, it is the user's
+ responsibility to ensure no tuples with conflicting output values exist. If a conflict happens, egglog will
+ panic.</p>
+<p>Now let's insert the same edges as before, but we will assign a length to each edge. This is done using the <code>set</code> action,
+ which takes a tuple and an output value:</p>
+<pre><code class="language-egglog">(<span class="keyword">set</span> (edge 1 2) 10)
+(<span class="keyword">set</span> (edge 2 3) 10)
+(<span class="keyword">set</span> (edge 1 3) 30)</code></pre>
+<p>Let us define the reflexive rule and transitive rule for the <code>path</code> function.
+ In this rule, we use the <code>set</code> action to set the output value of the <code>path</code> function.
+ On the query side, we use <code>=</code> to bind the output value of a function.</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> ((= (edge x y) len))
+      ((<span class="keyword">set</span> (path x y) len)))
+(<span class="keyword">rule</span> ((= (path x y) xy) 
+       (= (edge y z) yz))
+      ((<span class="keyword">set</span> (path x z) (+ xy yz))))</code></pre>
+<p>Let's run our rules and check we get the desired shortest path.</p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+(<span class="keyword">check</span> (= (path 1 3) 20))
+
+(<span class="keyword">pop</span>)
+(<span class="keyword">push</span>)</code></pre>
+<p>Now let us combine the knowledge we have learned in lessons 1 and 2 to write a program that combines
+ both equality saturation and Datalog.</p>
+<p>We reuse our path example, but this time the nodes are terms constructed using the <code>mk</code> constructor,</p>
+<p>We start by defining a new, union-able sort.</p>
+<pre><code class="language-egglog">(<span class="keyword">sort</span> Node)</code></pre>
+<p>We can then define a new constructor for our sort.</p>
+<pre><code class="language-egglog">(<span class="keyword">constructor</span> mk (i64) Node)</code></pre>
+<p>Note: We could have equivalently written
+ <code>(datatype Node
+     (mk i64))</code>
+ <code>datatype</code> is a syntactic sugar for <code>sort</code>s and <code>constructor</code>s.</p>
+<pre><code class="language-egglog">(<span class="keyword">relation</span> edge (Node Node))
+(<span class="keyword">relation</span> path (Node Node))
+
+(<span class="keyword">rule</span> ((edge x y))
+      ((path x y)))
+(<span class="keyword">rule</span> ((path x y) (edge y z))
+      ((path x z)))
+
+(edge (mk 1) (mk 2))
+(edge (mk 2) (mk 3))
+(edge (mk 3) (mk 1))
+(edge (mk 5) (mk 6))</code></pre>
+<p>Because we defined our nodes using a <code>sort</code>, we can "union" two nodes.
+ This makes them indistinguishable to rules in <code>egglog</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">union</span> (mk 3) (mk 5))</code></pre>
+<p><code>union</code> is a new keyword here, but it is our old friend: <code>rewrite</code>s are implemented as rules whose
+ actions are <code>union</code>s. For instance, <code>(rewrite (Add a b) (Add b a))</code> is lowered to the following
+ rule:
+ <code>(rule ((= e (Add x y)))
+       ((union e (Add y x))))</code></p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+
+(<span class="keyword">check</span> (edge (mk 3) (mk 6)))
+(<span class="keyword">check</span> (path (mk 1) (mk 6)))</code></pre>
+<p>We can also give a new meaning to equivalence by adding the following rule.</p>
+<pre><code class="language-egglog">(<span class="keyword">rule</span> ((path x y)
+       (path y x))
+      ((<span class="keyword">union</span> x y)))</code></pre>
+<p>This rule says that if there is a path from <code>x</code> to <code>y</code> and from <code>y</code> to <code>x</code>, then 
+ <code>x</code> and <code>y</code> are equivalent.
+ This rule allows us to tell if <code>a</code> and <code>b</code> are in the same connected component by checking
+ <code>(check (= (mk a) (mk b)))</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+(<span class="keyword">check</span> (= (mk 1) (mk 2))
+       (= (mk 1) (mk 3))
+       (= (mk 2) (mk 3)))</code></pre>
+<p><strong>Exercises:</strong></p>
+<ol>
+<li>
+<p>In our lesson 1, it is tedious to write associativity and commutativity (AC) rules for
+    every AC operators (e.g., Add, Mul, ...). One way to save us from this repetitive work
+    is to parameterize over the operators.
+    Rewrite this program so that instead of <code>Mul</code> and <code>Add</code>, <code>Expr</code> has a <code>Bop</code> operator
+    that takes an operator kind and two operands, i.e., </p>
+<p><code>(datatype BopKind (Add) (Mul) ..)
+ (datatype Expr ..
+     (Bop (BopKind Expr Expr))</code></p>
+<p>By parametrizing over <code>Bop</code>, we can define a single associativity and a single commutativity rule
+for all AC operators.
+ 2. One of the rewrite rules that we cannot make a <code>birewrite</code> in lesson 1 is the rule
+<code>(rewrite (Add x (Num 0)) x)</code>. This is because it is not clear what <code>x</code> is bound to 
+in the inverse rule, <code>(rewrite x (Add x (Num 0)))</code>. Therefore, defining this rule in egglog
+causes an error. One way to fix this is to introduce a "universe" relation, which contains
+every term in the e-graph. So we can write our rules as follows:</p>
+<p><code>(rule ((universe x))
+       ((union x (Add x (Num 0)))))</code></p>
+<p>Please define such a <code>universe</code> relation so that the above rule works.</p>
+<p>Side Note: The above rule can also be written using the shorthand <code>rewrite</code> with a <code>:when</code> 
+ condition: <code>(rewrite x (Add x (Num 0)) :when ((universe x)))</code>, and similarly the birewrite
+ rule <code>(birewrite (Add x (Num 0)) x :when ((universe x)))</code>, which introduces a bit of 
+ overhead for the forward direction, but is more concise.</p>
+</li>
+</ol>
+<p><strong>Everything is a function</strong></p>
+<p>We have talked about relations being a special case of functions, but in fact, <code>constructor</code>s like <code>Add</code> and <code>Mul</code>
+ are also function tables under the hood!
+ For instance, the <code>Add</code> constructor</p>
+<p><code>(constructor Add (Expr Expr) Expr)</code></p>
+<p>is a function with two <code>Expr</code> inputs and one <code>Expr</code> output. Its merge expression is simply to union the two output values.
+ This corresponds to functional dependency: If <code>x1 = x2</code>, and <code>y1 =y2</code>, then it follows that
+ <code>(Add x1 y1)</code> and <code>(Add x2 y2)</code> are equivalent.
+ In other words, functions, functional dependencies, and merge expressions are the fundamental unifying concepts in our framework.
+ This allows us to implement egglog as a database system and using advanced database techniques.</p>
+<p>There is one last caveat about constructors though: Different from <code>function</code> but similar to <code>relation</code>, constructor have default values, so expressions
+ like <code>(let e1 (Num 2))</code> succeeds even when <code>(Num 2)</code> is not already in the e-graph, in which case it creates a new id for the output.
+ In contrast, since <code>relation</code> are functions with output domain <code>Unit</code>, its default value is the only value of type <code>Unit</code>.</p>
+    </main>
+    
+    <footer>
+        <p>Generated from <code>02-datalog.egg</code> | <a href="https://github.com/egraphs-good/egglog" target="_blank">The egglog project</a></p>
+    </footer>
+</body>
+</html>

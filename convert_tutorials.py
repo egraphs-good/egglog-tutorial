@@ -79,6 +79,7 @@ def highlight_egglog_syntax(code: str) -> str:
         [
             "run-with",
             "let-scheduler",
+            "with-ruleset",
             "print-size",
             "print-function",
             "rewrite",

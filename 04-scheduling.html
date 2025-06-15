@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title># Scheduling - egglog tutorial</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+        }
+        
+        .tutorial-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .nav-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .tutorial-nav h1 {
+            margin: 0 0 0.5rem 0;
+            color: #ecf0f1;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-links .current {
+            background-color: #3498db;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        p {
+            margin: 1rem 0;
+            text-align: justify;
+        }
+        
+        code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* egglog syntax highlighting */
+        .keyword { color: #e74c3c; font-weight: bold; }
+
+        
+        .language-egglog {
+            color: #2c3e50;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .nav-links {
+                font-size: 0.9rem;
+            }
+            
+            .nav-links a, .nav-links .current {
+                margin: 0 0.2rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="tutorial-nav">
+        <div class="nav-container">
+            <h1>Tutorial for egglog</h1>
+            <div class="nav-links">
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <a href="03-analysis.html">03 Analysis</a> | <span class="current">04 Scheduling</span> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+            </div>
+        </div>
+    </nav>
+    
+    
+    <main>
+        <h1># Scheduling</h1>
+        <p>In this lesson, we will learn how to use <code>run-schedule</code> to improve the performance of egglog.
+ We start by using the same language as the previous lesson.</p>
+<pre><code class="language-egglog">(<span class="keyword">datatype</span> Expr
+    (Num BigRat)
+    (Var String)
+    (Add Expr Expr)
+    (Mul Expr Expr)
+    (Div Expr Expr))
+
+(<span class="keyword">let</span> zero (bigrat (bigint 0) (bigint 1)))
+(<span class="keyword">let</span> one (bigrat (bigint 1) (bigint 1)))
+(<span class="keyword">let</span> two (bigrat (bigint 2) (bigint 1)))</code></pre>
+<p>Different from lesson 3, we organize our rules into ""rulesets"
+ A ruleset is exactly what it sounds like; a set of rules.
+ We can declare rulesets using the <code>ruleset</code> command.</p>
+<pre><code class="language-egglog">(<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">ruleset</span> analysis)</code></pre>
+<p>We can add rules to rulesets using the <code>:ruleset</code> annotation on <code>rule</code>s, <code>rewrite</code>s, and <code>birewrite</code>s.
+ Leaving off <code>:ruleset</code> causes the rule to be added to the default ruleset, which is what we've shown so far.
+ We can run rulesets using <code>(run ruleset iters)</code>.
+ The <code>leq</code> rules are purely analysis rules, because they don't add any new <code>Expr</code> nodes to the e-graph.</p>
+<pre><code class="language-egglog">(<span class="keyword">relation</span> leq (Expr Expr))
+(<span class="keyword">rule</span> ((leq e1 e2) (leq e2 e3)) ((leq e1 e3)) :<span class="keyword">ruleset</span> analysis)
+(<span class="keyword">rule</span> ((= e1 (Num n1)) (= e2 (Num n2)) (<= n1 n2)) ((leq e1 e2)) :<span class="keyword">ruleset</span> analysis)
+(<span class="keyword">rule</span> ((= v (Var x))) ((leq v v)) :<span class="keyword">ruleset</span> analysis)
+(<span class="keyword">rule</span> ((= e1 (Add e1a e1b)) (= e2 (Add e2a e2b)) (leq e1a e2a) (leq e1b e2b))
+      ((leq e1 e2))
+      :<span class="keyword">ruleset</span> analysis)</code></pre>
+<p>In contrast, these axiomatic rules are doing optimizations.</p>
+<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Add x (Add y z)) (Add (Add x y) z) :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">birewrite</span> (Mul x (Mul y z)) (Mul (Mul x y) z) :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Add x y) (Add y x) :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Mul x y) (Mul y x) :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Mul x (Add y z)) (Add (Mul x y) (Mul x z)) :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Add x (Num zero)) x :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Mul x (Num one)) x :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Add (Num a) (Num b)) (Num (+ a b)) :<span class="keyword">ruleset</span> optimizations)
+(<span class="keyword">rewrite</span> (Mul (Num a) (Num b)) (Num (* a b)) :<span class="keyword">ruleset</span> optimizations)</code></pre>
+<p>It is tedious and error-prone to manually annotate each rule with a ruleset.
+ <code>egglog-experimental</code> provides a convenience syntax <code>with-ruleset</code>:</p>
+<p><code>(with-ruleset optimizations
+     (birewrite (Add x (Add y z)) (Add (Add x y) z))
+     ...
+ )</code></p>
+<p>From now on, we will use this syntax.</p>
+<p>Here we add the rest of the rules from the last section, but tagged with the appropriate rulesets.</p>
+<pre><code class="language-egglog">(<span class="keyword">function</span> upper-bound (Expr) BigRat :merge (min old new))
+(<span class="keyword">function</span> lower-bound (Expr) BigRat :merge (max old new))
+(with-<span class="keyword">ruleset</span> analysis
+    (<span class="keyword">rule</span> ((leq e (Num n))) ((<span class="keyword">set</span> (upper-bound e) n)))
+    (<span class="keyword">rule</span> ((leq (Num n) e)) ((<span class="keyword">set</span> (lower-bound e) n)))
+    (<span class="keyword">rule</span> ((= e (Add e1 e2)) (= (upper-bound e1) u1) (= (upper-bound e2) u2))
+          ((<span class="keyword">set</span> (upper-bound e) (+ u1 u2))))
+    (<span class="keyword">rule</span> ((= e (Add e1 e2)) (= (lower-bound e1) l1) (= (lower-bound e2) l2))
+        ((<span class="keyword">set</span> (lower-bound e) (+ l1 l2))))
+
+    (<span class="keyword">rule</span> ((= e (Mul e1 e2))
+           (= le1 (lower-bound e1)) (= le2 (lower-bound e2))
+           (= ue1 (upper-bound e1)) (= ue2 (upper-bound e2)))
+         ((<span class="keyword">set</span> (lower-bound e)
+              (min (* le1 le2) (min (* le1 ue2) (min (* ue1 le2) (* ue1 ue2)))))
+          (<span class="keyword">set</span> (upper-bound e)
+              (max (* le1 le2) (max (* le1 ue2) (max (* ue1 le2) (* ue1 ue2))))))
+    )
+)
+
+(<span class="keyword">relation</span> non-zero (Expr))
+(with-<span class="keyword">ruleset</span> analysis
+    (<span class="keyword">rule</span> ((< (upper-bound e) zero)) ((non-zero e)))
+    (<span class="keyword">rule</span> ((> (lower-bound e) zero)) ((non-zero e)))
+)</code></pre>
+<p>Finally, we have the rules that depend on analyses but actually do optimization.</p>
+<pre><code class="language-egglog">(with-<span class="keyword">ruleset</span> optimizations
+    (<span class="keyword">rewrite</span> (Div x x)         (Num one) :<span class="keyword">when</span> ((non-zero x)))
+    (<span class="keyword">rewrite</span> (Mul x (Div y x)) y         :<span class="keyword">when</span> ((non-zero x)))
+)</code></pre>
+<p>Now consider the following program, which consists of a long sequence of additions <em>inside</em>
+ a cancelling division.</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)
+; a + (b + (c + (d + (e + f))))
+(<span class="keyword">let</span> addition-chain (Add (Var "a") (Add (Var "b") (Add (Var "c") (Add (Var "d") (Add (Var "e") (Var "f")))))))
+; 1 + 1 + 1 + 1 + 2
+(<span class="keyword">let</span> nonzero-expr (Add (Num one) (Add (Num one) (Add (Num one) (Add (Num one) (Num two))))))
+(<span class="keyword">let</span> expr (Mul nonzero-expr (Div addition-chain nonzero-expr)))</code></pre>
+<p>We want the following check to pass after running the rules</p>
+<pre><code class="language-egglog">(<span class="keyword">fail</span> (<span class="keyword">check</span> (= expr addition-chain)))</code></pre>
+<p>If we try to run both rulesets directly, egglog will spend lots of effort reassociating and
+ commuting the terms in the <code>addition-chain</code>, even though the optimization that we actually
+ want to run (cancelling division) only takes one iteration. However, that optimization requires
+ knowing a fact that takes multiple iterations to compute (propagating lower- and upper-bounds
+ through <code>nonzero-expr</code>). Thus, we can build a more efficient schedule for this specific program.</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
+<p>Start by saturating the analysis rules, fully propagating the <code>non-zero</code> information <em>without</em>
+ adding any nodes to the e-graph.</p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span> analysis)))</code></pre>
+<p>Then, just run one iteration of the <code>optimizations</code> ruleset.</p>
+<pre><code class="language-egglog">(<span class="keyword">run</span> optimizations 1)</code></pre>
+<p>This makes our check pass</p>
+<pre><code class="language-egglog">(<span class="keyword">check</span> (= expr addition-chain))</code></pre>
+<p>Print the size of the e-graph and the best expression reached for later.</p>
+<pre><code class="language-egglog">(<span class="keyword">print-size</span>)
+(<span class="keyword">extract</span> expr)</code></pre>
+<p>While the above program is effective at optimizing that specific program, it would fail if
+ we had a program where we had to interleave the optimizations and analyses. There is a common
+ pattern of schedules which we use to fix this, which use all four of the variants in our scheduling
+ language: <code>repeat</code>, <code>seq</code>, <code>saturate</code>, and <code>run</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">pop</span>)
+(<span class="keyword">push</span>)</code></pre>
+<p>The idea behind this schedule is to always saturate analyses before running optimizations.
+ We then wrap that schedule in a <code>repeat</code> block to give us control over how long to run egglog.
+ Using <code>repeat 1</code> gives us the same schedule as before, but now we can increase the iteration
+ count if we want better results and have the time/space budget for it.</p>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
+    (<span class="keyword">repeat</span> 2
+        (<span class="keyword">seq</span>
+            (saturate (<span class="keyword">run</span> analysis))
+            (<span class="keyword">run</span> optimizations)
+         )
+    )
+)</code></pre>
+<p>Here we can see how much larger the e-graph is with just one more iteration.</p>
+<pre><code class="language-egglog">(<span class="keyword">print-size</span>)</code></pre>
+<p>And the extra iteration doesn't make a difference for <code>expr</code> specifically.</p>
+<pre><code class="language-egglog">(<span class="keyword">extract</span> expr)</code></pre>
+<p>However, if we had started with a slightly different program to optimize...</p>
+<pre><code class="language-egglog">(<span class="keyword">pop</span>)
+(<span class="keyword">pop</span>)
+(<span class="keyword">push</span>)
+; a + (b + (c + (d + (e + f))))
+(<span class="keyword">let</span> addition-chain (Add (Var "a") (Add (Var "b") (Add (Var "c") (Add (Var "d") (Add (Var "e") (Var "f")))))))
+; x * 0
+(<span class="keyword">let</span> x-times-zero (Mul (Var "x") (Num zero)))
+(<span class="keyword">let</span> nonzero-expr (Add (Num one) (Add (Num one) (Add (Num one) (Add (Num one) x-times-zero)))))
+(<span class="keyword">let</span> expr (Mul nonzero-expr (Div addition-chain nonzero-expr)))</code></pre>
+<p>For the purpose of this example, we add this rule</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x (Num zero)) (Num zero) :<span class="keyword">ruleset</span> optimizations)</code></pre>
+<p>Then, only running with <code>repeat 1</code>...</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)
+(<span class="keyword">run-schedule</span>
+    (<span class="keyword">repeat</span> 1
+        (<span class="keyword">seq</span>
+            (saturate (<span class="keyword">run</span> analysis))
+            (<span class="keyword">run</span> optimizations)
+         )
+    )
+)
+(<span class="keyword">extract</span> expr)
+(<span class="keyword">pop</span>)</code></pre>
+<p>does not give us the optimal program. Instead, we need to <code>repeat 2</code>...</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)
+(<span class="keyword">run-schedule</span>
+    (<span class="keyword">repeat</span> 2
+        (<span class="keyword">seq</span>
+            (saturate (<span class="keyword">run</span> analysis))
+            (<span class="keyword">run</span> optimizations)
+         )
+    )
+)
+(<span class="keyword">extract</span> expr)</code></pre>
+<p>Because it takes one iteration of <code>optimizations</code> to simplify <code>x-times-zero</code> to <code>zero</code>, and this is
+ required to determine that <code>nonzero-expr</code> is actually <code>nonzero</code>.</p>
+<p>However, sometimes just having an iteration number does not give you enough control.
+ As we can see from the <code>(print-size)</code>s above, adding one iteration can increase the size of the
+ e-graph hyper-exponentially. </p>
+<p>To this end, egglog has an scheduler mechanism. A scheduler can decide which matches are important and need to be applied,
+ while others can be delayed or skipped. To use scheduler, there are two operations: <code>let-scheduler</code> and <code>run-with</code>.
+ <code>(let-scheduler sched ..)</code> instantiates a scheduler <code>sched</code>, and <code>(run-with sched ruleset)</code> rules a ruleset with that scheduler.</p>
+<p>Currently, <code>egglog-experimental</code> implements one scheduler, <code>back-off</code>. The idea of <code>back-off</code> is that it will ban
+ a rule from applying if that rule grows the e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.</p>
+<pre><code class="language-egglog">TODO: strengthen this example</code></pre>
+<p>Here, we can see that we can run 25 "iterations" without timing out. (If you change the <code>run-with bo</code>s to <code>run</code>s the worker thread will hang.)</p>
+<pre><code class="language-egglog">(<span class="keyword">pop</span>)
+(<span class="keyword">push</span>)
+(<span class="keyword">run-schedule</span>
+    (<span class="keyword">let-scheduler</span> bo (back-off))
+    (<span class="keyword">repeat</span> 25
+        (<span class="keyword">seq</span>
+            (<span class="keyword">run-with</span> bo analysis)
+            (<span class="keyword">run-with</span> bo optimizations)
+         )
+    )
+)</code></pre>
+    </main>
+    
+    <footer>
+        <p>Generated from <code>04-scheduling.egg</code> | <a href="https://github.com/egraphs-good/egglog" target="_blank">The egglog project</a></p>
+    </footer>
+</body>
+</html>
