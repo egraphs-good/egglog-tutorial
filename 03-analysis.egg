@@ -235,3 +235,43 @@
 ;;     (run-schedule (saturate (run)))
 ;;     (extract (FreeVars expr3))
 ;;     ```
+
+(sort FreeVarSet (Set String))
+(extract (set-of "1" "1"))
+(function FreeVars (Expr) FreeVarSet :merge (set-intersect old new))
+
+(rule (
+    (= e (Num a))
+) (
+    (set (FreeVars e) (set-of))
+))
+(rule (
+    (= e (Var a))
+) (
+    (set (FreeVars e) (set-of a))
+))
+(rule (
+    (= e (Add a b))
+    (= f (FreeVars a))
+    (= g (FreeVars b))
+) (
+    (set (FreeVars e) (set-union f g))
+))
+(rule (
+    (= e (Mul a b))
+    (= f (FreeVars a))
+    (= g (FreeVars b))
+) (
+    (set (FreeVars e) (set-union f g))
+))
+(rule (
+    (= e (Div a b))
+    (= f (FreeVars a))
+    (= g (FreeVars b))
+) (
+    (set (FreeVars e) (set-union f g))
+))
+
+
+(run-schedule (saturate (run)))
+(extract (FreeVars expr3))
