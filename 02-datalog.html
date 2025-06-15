@@ -195,6 +195,7 @@
        ((path a c)))</code>
  Does this rule compute the same relation as the original rule? How does this rule 
  compare to the original rule? Hint: it's slow, why?</p>
+<hr />
 <pre><code class="language-egglog">(<span class="keyword">pop</span>) ;; resets egglog
 (<span class="keyword">push</span>)</code></pre>
 <p>Our last example determines whether there is a path from one node to another,
@@ -285,32 +286,70 @@
        (= (mk 1) (mk 3))
        (= (mk 2) (mk 3)))</code></pre>
 <p><strong>Exercises:</strong></p>
-<ol>
-<li>
-<p>In our lesson 1, it is tedious to write associativity and commutativity (AC) rules for
-    every AC operators (e.g., Add, Mul, ...). One way to save us from this repetitive work
-    is to parameterize over the operators.
-    Rewrite this program so that instead of <code>Mul</code> and <code>Add</code>, <code>Expr</code> has a <code>Bop</code> operator
-    that takes an operator kind and two operands, i.e., </p>
-<p><code>(datatype BopKind (Add) (Mul) ..)
- (datatype Expr ..
-     (Bop (BopKind Expr Expr))</code></p>
-<p>By parametrizing over <code>Bop</code>, we can define a single associativity and a single commutativity rule
-for all AC operators.
- 2. One of the rewrite rules that we cannot make a <code>birewrite</code> in lesson 1 is the rule
-<code>(rewrite (Add x (Num 0)) x)</code>. This is because it is not clear what <code>x</code> is bound to 
-in the inverse rule, <code>(rewrite x (Add x (Num 0)))</code>. Therefore, defining this rule in egglog
-causes an error. One way to fix this is to introduce a "universe" relation, which contains
-every term in the e-graph. So we can write our rules as follows:</p>
-<p><code>(rule ((universe x))
-       ((union x (Add x (Num 0)))))</code></p>
+<p><strong>(Parametrized rewrite rule)</strong>
+ In our lesson 1, it is tedious to write associativity and commutativity (AC) rules for
+ every AC operators (e.g., Add, Mul, ...). One way to save us from this repetitive work
+ is to parameterize over the operators.</p>
+<p>In the following program, instead of <code>Mul</code> and <code>Add</code>, <code>Expr</code> has a <code>Bop</code> operator
+ that takes an operator kind and two operands.</p>
+<pre><code> (datatype BopKind (Add) (Mul) (Div))
+ (datatype Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
+</code></pre>
+<p>First, add a relation <code>AcBopKind</code> that holds <code>BopKind</code>s which are associative and commutative.
+ Second, insert the appropriate <code>BopKind</code>s into that relation.
+ Third, add a single rule that implements commutativity for all <code>Bop</code>s with an <code>ACBopKind</code>.
+ Finally, add a single rule that implements associativity for all <code>Bop</code>s with an <code>ACBopKind</code>.</p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)
+(<span class="keyword">datatype</span> BopKind (Add) (Mul) (Div))
+(<span class="keyword">datatype</span> Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
+
+(<span class="keyword">relation</span> AcBopKind (BopKind))
+(AcBopKind (Add)) (AcBopKind (Mul))
+(<span class="keyword">rule</span> (
+    (= e (Bop k a b))
+    (AcBopKind k)
+) (
+    (<span class="keyword">union</span> e (Bop k b a))
+))
+(<span class="keyword">rule</span> (
+    (= e (Bop k a (Bop k b c)))
+    (AcBopKind k)
+) (
+    (<span class="keyword">union</span> e (Bop k (Bop k a b) c))
+))
+(<span class="keyword">pop</span>)</code></pre>
+<p><strong>(universe relation)</strong> 
+ One of the rewrite rules that we cannot make a <code>birewrite</code> in lesson 1 is the rule
+ <code>(rewrite (Add x (Num 0)) x)</code>. This is because it is not clear what <code>x</code> is bound to 
+ in the inverse rule, <code>(rewrite x (Add x (Num 0)))</code>. Therefore, defining this rule in egglog
+ causes an error. One way to fix this is to introduce a "universe" relation, which contains
+ every term in the e-graph. So we can write our rules as follows:</p>
+<pre><code> (rule ((universe x))
+       ((union x (Add x (Num 0)))))
+</code></pre>
 <p>Please define such a <code>universe</code> relation so that the above rule works.</p>
 <p>Side Note: The above rule can also be written using the shorthand <code>rewrite</code> with a <code>:when</code> 
  condition: <code>(rewrite x (Add x (Num 0)) :when ((universe x)))</code>, and similarly the birewrite
  rule <code>(birewrite (Add x (Num 0)) x :when ((universe x)))</code>, which introduces a bit of 
  overhead for the forward direction, but is more concise.</p>
-</li>
-</ol>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)
+(<span class="keyword">datatype</span> Expr
+  (Num i64)
+  (Var String)
+  (Add Expr Expr)
+  (Mul Expr Expr))
+
+(<span class="keyword">relation</span> universe (Expr))
+(<span class="keyword">rule</span> ((= e (Num x))) ((universe e)))
+(<span class="keyword">rule</span> ((= e (Var x))) ((universe e)))
+(<span class="keyword">rule</span> ((= e (Add x y))) ((universe e)))
+(<span class="keyword">rule</span> ((= e (Mul x y))) ((universe e)))
+
+(<span class="keyword">rule</span> ((universe x))
+      ((<span class="keyword">union</span> x (Add x (Num 0)))))
+
+(<span class="keyword">pop</span>)</code></pre>
+<hr />
 <p><strong>Everything is a function</strong></p>
 <p>We have talked about relations being a special case of functions, but in fact, <code>constructor</code>s like <code>Add</code> and <code>Mul</code>
  are also function tables under the hood!

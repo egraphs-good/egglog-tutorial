@@ -302,33 +302,71 @@
  first argument. This is useful when trying to figure out why one e-class is failing to be unioned with another.</p>
 <pre><code class="language-egglog">(<span class="keyword">extract</span> expr3 3)</code></pre>
 <p><strong>Exercises:</strong></p>
-<ol>
-<li>
-<p>One analysis that is frequently useful is free variable sets. While it is possible to simulate "sets" using
-    only functions, egglog provides <em>containers</em> to make this less tedious and more efficient. A container
-    is essentially a value that can store other values; some examples are <code>Set</code>, <code>Map</code>, and <code>Vec</code>.
-    However, before we can construct a container, we have to tell <code>egglog</code> what sort to use inside
-    the container. This is done with an overload of the <code>sort</code> command.
-     <code>(sort FreeVarSet (Set String))</code></p>
-<p>Now, we can construct sets with <code>set-of</code>.
- <code>(extract (set-of "1" "1"))</code></p>
+<p><strong>(Free variable analysis)</strong>
+ One analysis that is frequently useful is free variable sets. While it is possible to simulate "sets" using
+ only functions, egglog provides <em>containers</em> to make this less tedious and more efficient. A container
+ is essentially a value that can store other values; some examples are <code>Set</code>, <code>Map</code>, and <code>Vec</code>.
+ However, before we can construct a container, we have to tell <code>egglog</code> what sort to use inside
+ the container. This is done with an overload of the <code>sort</code> command.</p>
+<p><code>(sort FreeVarSet (Set String))</code></p>
+<p>Now, we can construct sets with <code>set-of</code>.</p>
+<p><code>(extract (set-of "1" "1"))</code></p>
 <p>We will need a function to store the results of our free variable analysis. We have to use set intersection
-for the merge function, because of rewrites like <code>x / x =&gt; 1</code>.
- <code>(function FreeVars (Expr) FreeVarSet :merge (set-intersect old new))</code></p>
+ for the merge function, because of rewrites like <code>x / x =&gt; 1</code>.</p>
+<p><code>(function FreeVars (Expr) FreeVarSet :merge (set-intersect old new))</code></p>
 <p>Finally, we will need you to write the rules for the free variable analysis. You should have one rule for
-every variant of <code>Expr</code>. Here's an example rule for <code>Add</code>:
- <code>(rule (
-     (= e (Add a b))
-     (= f (FreeVars a))
-     (= g (FreeVars b))
- ) (
-     (set (FreeVars e) (set-union f g))
- ))</code></p>
-</li>
-</ol>
-<p>If everything worked, <code>expr5</code> should only have <code>"x"</code> as a free variable.
-     <code>(run-schedule (saturate (run)))
-     (extract (FreeVars expr3))</code></p>
+ every variant of <code>Expr</code>. Here's an example rule for <code>Add</code>:</p>
+<pre><code>  (rule (
+      (= e (Add a b))
+      (= f (FreeVars a))
+      (= g (FreeVars b))
+  ) (
+      (set (FreeVars e) (set-union f g))
+  ))
+</code></pre>
+<p>If everything worked, <code>expr5</code> should only have <code>"x"</code> as a free variable.</p>
+<pre><code> (run-schedule (saturate (run)))
+ (extract (FreeVars expr3))
+</code></pre>
+<pre><code class="language-egglog">(<span class="keyword">sort</span> FreeVarSet (Set String))
+(<span class="keyword">extract</span> (<span class="keyword">set</span>-of "1" "1"))
+(<span class="keyword">function</span> FreeVars (Expr) FreeVarSet :merge (<span class="keyword">set</span>-intersect old new))
+
+(<span class="keyword">rule</span> (
+    (= e (Num a))
+) (
+    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-of))
+))
+(<span class="keyword">rule</span> (
+    (= e (Var a))
+) (
+    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-of a))
+))
+(<span class="keyword">rule</span> (
+    (= e (Add a b))
+    (= f (FreeVars a))
+    (= g (FreeVars b))
+) (
+    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-<span class="keyword">union</span> f g))
+))
+(<span class="keyword">rule</span> (
+    (= e (Mul a b))
+    (= f (FreeVars a))
+    (= g (FreeVars b))
+) (
+    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-<span class="keyword">union</span> f g))
+))
+(<span class="keyword">rule</span> (
+    (= e (Div a b))
+    (= f (FreeVars a))
+    (= g (FreeVars b))
+) (
+    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-<span class="keyword">union</span> f g))
+))
+
+
+(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
+(<span class="keyword">extract</span> (FreeVars expr3))</code></pre>
     </main>
     
     <footer>

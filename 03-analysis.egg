@@ -198,43 +198,46 @@
 
 ;; **Exercises:**
 ;;
-;; 1. One analysis that is frequently useful is free variable sets. While it is possible to simulate "sets" using
-;;    only functions, egglog provides _containers_ to make this less tedious and more efficient. A container
-;;    is essentially a value that can store other values; some examples are `Set`, `Map`, and `Vec`.
-;;    However, before we can construct a container, we have to tell `egglog` what sort to use inside
-;;    the container. This is done with an overload of the `sort` command.
-;;     ```
-;;     (sort FreeVarSet (Set String))
-;;     ```
+;; **(Free variable analysis)**
+;; One analysis that is frequently useful is free variable sets. While it is possible to simulate "sets" using
+;; only functions, egglog provides _containers_ to make this less tedious and more efficient. A container
+;; is essentially a value that can store other values; some examples are `Set`, `Map`, and `Vec`.
+;; However, before we can construct a container, we have to tell `egglog` what sort to use inside
+;; the container. This is done with an overload of the `sort` command.
 ;;
-;;    Now, we can construct sets with `set-of`.
-;;     ```
-;;     (extract (set-of "1" "1"))
-;;     ```
+;; ```
+;; (sort FreeVarSet (Set String))
+;; ```
 ;;
-;;    We will need a function to store the results of our free variable analysis. We have to use set intersection
-;;    for the merge function, because of rewrites like `x / x => 1`.
-;;     ```
-;;     (function FreeVars (Expr) FreeVarSet :merge (set-intersect old new))
-;;     ```
+;; Now, we can construct sets with `set-of`.
 ;;
-;;    Finally, we will need you to write the rules for the free variable analysis. You should have one rule for
-;;    every variant of `Expr`. Here's an example rule for `Add`:
-;;     ```
-;;     (rule (
-;;         (= e (Add a b))
-;;         (= f (FreeVars a))
-;;         (= g (FreeVars b))
-;;     ) (
-;;         (set (FreeVars e) (set-union f g))
-;;     ))
-;;     ```
+;; ```
+;; (extract (set-of "1" "1"))
+;; ```
+;;
+;; We will need a function to store the results of our free variable analysis. We have to use set intersection
+;; for the merge function, because of rewrites like `x / x => 1`.
+;;
+;; ```
+;; (function FreeVars (Expr) FreeVarSet :merge (set-intersect old new))
+;; ```
+;;
+;; Finally, we will need you to write the rules for the free variable analysis. You should have one rule for
+;; every variant of `Expr`. Here's an example rule for `Add`:
+;;
+;;      (rule (
+;;          (= e (Add a b))
+;;          (= f (FreeVars a))
+;;          (= g (FreeVars b))
+;;      ) (
+;;          (set (FreeVars e) (set-union f g))
+;;      ))
 ;;
 ;; If everything worked, `expr5` should only have `"x"` as a free variable.
-;;     ```
+;;
 ;;     (run-schedule (saturate (run)))
 ;;     (extract (FreeVars expr3))
-;;     ```
+;;
 
 (sort FreeVarSet (Set String))
 (extract (set-of "1" "1"))

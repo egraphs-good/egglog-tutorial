@@ -145,10 +145,10 @@
   (Add Expr Expr)
   (Mul Expr Expr))</code></pre>
 <p>Now, let's define some simple expressions.</p>
-<pre><code class="language-egglog">; expr1 = 2 * (x + 3)
-(<span class="keyword">let</span> expr1 (Mul (Num 2) (Add (Var "x") (Num 3))))
-; expr2 = 6 + 2 * x
-(<span class="keyword">let</span> expr2 (Add (Num 6) (Mul (Num 2) (Var "x"))))</code></pre>
+<pre><code class="language-egglog">; expr1 = 2 * (x * 3)
+(<span class="keyword">let</span> expr1 (Mul (Num 2) (Mul (Var "x") (Num 3))))
+; expr2 = 6 * x
+(<span class="keyword">let</span> expr2 (Mul (Num 6) (Var "x")))</code></pre>
 <p>If you are running the program in the web demo, in the bottom right corner,
  you should see an e-graph with two expressions,
  each corresponding to the two expressions we defined above.</p>
@@ -224,16 +224,36 @@
  (Var "x")))</code> are in the same E-class. In fact, we can check that</p>
 <pre><code class="language-egglog">(<span class="keyword">check</span> (= expr1 expr2))</code></pre>
 <p><strong>Exercises</strong></p>
-<ol>
-<li>Define the distributivity rule for multiplication over addition. Find two expressions that 
-    can be proven equivalent using this rule.</li>
-<li>Write a rule that asserts <code>x + 0 = x</code> and <code>x * 1</code> = x. Run egglog over the rules we have above and this rule.
-    Try to increase the number of iterations. What happens? Why?</li>
-<li>Egglog has the <code>birewrite</code> keyword, which is similar to <code>rewrite</code>, but it allows rewriting
-    in both directions. Make the associativity rule above a birewrite rule. Looking at the rules
-    we have defined, when is a birewrite rule useful and when it is not? When is it not 
-    even well-defined?</li>
-</ol>
+<p><strong>(Distributivity)</strong> Define the distributivity rule for multiplication over addition. When you're done, the
+ following code should pass.</p>
+<pre><code> ; expr3 = 2 * (x + 3)
+ (let expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
+ ; expr4 = 6 + 2 * x
+ (let expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+ (fail (check (= expr3 expr4)))
+ (run 10)
+ (check (= expr3 expr4))
+</code></pre>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul a (Add b c)) (Add (Mul a b) (Mul a c)))
+
+; expr3 = 2 * (x + 3)
+(<span class="keyword">let</span> expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
+; expr4 = 6 + 2 * x
+(<span class="keyword">let</span> expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+(<span class="keyword">fail</span> (<span class="keyword">check</span> (= expr3 expr4)))
+(<span class="keyword">run</span> 10)
+(<span class="keyword">check</span> (= expr3 expr4))</code></pre>
+<p><strong>(birewrite)</strong> Egglog has the <code>birewrite</code> keyword, which is similar to <code>rewrite</code>, but it allows rewriting
+  in both directions. Try making some of the rules above into birewrite rules. Looking at the rules
+  we have defined, when is a birewrite rule useful and when it is not? When is it not 
+  even well-defined?</p>
+<p>A birewrite rule is useful when you would otherwise write out two rewrites.</p>
+<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Mul x (Mul y z)) (Mul (Mul x y) z))</code></pre>
+<p>A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).</p>
+<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Mul x y) (Mul y x))</code></pre>
+<p>A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.</p>
+<pre><code> ; (birewrite (Mul x (Num 1)) x)
+</code></pre>
     </main>
     
     <footer>

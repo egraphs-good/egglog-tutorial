@@ -108,9 +108,9 @@
 
 ;; **Exercises**
 ;;
-;; 1. Define the distributivity rule for multiplication over addition. When you're done, the
-;;    following code should pass.
-;;     ```
+;; **(Distributivity)** Define the distributivity rule for multiplication over addition. When you're done, the
+;; following code should pass.
+;;
 ;;     ; expr3 = 2 * (x + 3)
 ;;     (let expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
 ;;     ; expr4 = 6 + 2 * x
@@ -118,7 +118,7 @@
 ;;     (fail (check (= expr3 expr4)))
 ;;     (run 10)
 ;;     (check (= expr3 expr4))
-;;     ```
+;;
 
 (rewrite (Mul a (Add b c)) (Add (Mul a b) (Mul a c)))
 
@@ -130,16 +130,17 @@
 (run 10)
 (check (= expr3 expr4))
 
-;; 2. Egglog has the `birewrite` keyword, which is similar to `rewrite`, but it allows rewriting
-;;    in both directions. Try making some of the rules above into birewrite rules. Looking at the rules
-;;    we have defined, when is a birewrite rule useful and when it is not? When is it not 
-;;    even well-defined?
+;; **(birewrite)** Egglog has the `birewrite` keyword, which is similar to `rewrite`, but it allows rewriting
+;;  in both directions. Try making some of the rules above into birewrite rules. Looking at the rules
+;;  we have defined, when is a birewrite rule useful and when it is not? When is it not 
+;;  even well-defined?
 
-; A birewrite rule is useful when you would otherwise write out two rewrites.
+;; A birewrite rule is useful when you would otherwise write out two rewrites.
 (birewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
 
-; A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).
+;; A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).
 (birewrite (Mul x y) (Mul y x))
 
-; A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.
-; (birewrite (Mul x (Num 1)) x)
+;; A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.
+;;
+;;     ; (birewrite (Mul x (Num 1)) x)

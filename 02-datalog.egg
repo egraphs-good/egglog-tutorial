@@ -76,6 +76,8 @@
 ;; ```
 ;; Does this rule compute the same relation as the original rule? How does this rule 
 ;; compare to the original rule? Hint: it's slow, why?
+;;
+;; ---
 
 (pop) ;; resets egglog
 (push)
@@ -188,19 +190,21 @@
 
 ;; **Exercises:**
 ;;
-;; 1. In our lesson 1, it is tedious to write associativity and commutativity (AC) rules for
-;;    every AC operators (e.g., Add, Mul, ...). One way to save us from this repetitive work
-;;    is to parameterize over the operators.
-;;    In the following program, instead of `Mul` and `Add`, `Expr` has a `Bop` operator
-;;    that takes an operator kind and two operands.
-;;     ```
+;; **(Parametrized rewrite rule)**
+;; In our lesson 1, it is tedious to write associativity and commutativity (AC) rules for
+;; every AC operators (e.g., Add, Mul, ...). One way to save us from this repetitive work
+;; is to parameterize over the operators.
+;;
+;; In the following program, instead of `Mul` and `Add`, `Expr` has a `Bop` operator
+;; that takes an operator kind and two operands.
+;;
 ;;     (datatype BopKind (Add) (Mul) (Div))
 ;;     (datatype Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
-;;     ```
-;;    First, add a relation `AcBopKind` that holds `BopKind`s which are associative and commutative.
-;;    Second, insert the appropriate `BopKind`s into that relation.
-;;    Third, add a single rule that implements commutativity for all `Bop`s with an `ACBopKind`.
-;;    Finally, add a single rule that implements associativity for all `Bop`s with an `ACBopKind`.
+;;
+;; First, add a relation `AcBopKind` that holds `BopKind`s which are associative and commutative.
+;; Second, insert the appropriate `BopKind`s into that relation.
+;; Third, add a single rule that implements commutativity for all `Bop`s with an `ACBopKind`.
+;; Finally, add a single rule that implements associativity for all `Bop`s with an `ACBopKind`.
 
 (push)
 (datatype BopKind (Add) (Mul) (Div))
@@ -222,23 +226,22 @@
 ))
 (pop)
 
-;; 2. One of the rewrite rules that we cannot make a `birewrite` in lesson 1 is the rule
-;;    `(rewrite (Add x (Num 0)) x)`. This is because it is not clear what `x` is bound to 
-;;    in the inverse rule, `(rewrite x (Add x (Num 0)))`. Therefore, defining this rule in egglog
-;;    causes an error. One way to fix this is to introduce a "universe" relation, which contains
-;;    every term in the e-graph. So we can write our rules as follows:
+;; **(universe relation)** 
+;; One of the rewrite rules that we cannot make a `birewrite` in lesson 1 is the rule
+;; `(rewrite (Add x (Num 0)) x)`. This is because it is not clear what `x` is bound to 
+;; in the inverse rule, `(rewrite x (Add x (Num 0)))`. Therefore, defining this rule in egglog
+;; causes an error. One way to fix this is to introduce a "universe" relation, which contains
+;; every term in the e-graph. So we can write our rules as follows:
 ;;
-;;     ```
 ;;     (rule ((universe x))
 ;;           ((union x (Add x (Num 0)))))
-;;     ```
 ;;
-;;     Please define such a `universe` relation so that the above rule works.
+;; Please define such a `universe` relation so that the above rule works.
 ;;
-;;     Side Note: The above rule can also be written using the shorthand `rewrite` with a `:when` 
-;;     condition: `(rewrite x (Add x (Num 0)) :when ((universe x)))`, and similarly the birewrite
-;;     rule `(birewrite (Add x (Num 0)) x :when ((universe x)))`, which introduces a bit of 
-;;     overhead for the forward direction, but is more concise.
+;; Side Note: The above rule can also be written using the shorthand `rewrite` with a `:when` 
+;; condition: `(rewrite x (Add x (Num 0)) :when ((universe x)))`, and similarly the birewrite
+;; rule `(birewrite (Add x (Num 0)) x :when ((universe x)))`, which introduces a bit of 
+;; overhead for the forward direction, but is more concise.
 
 (push)
 (datatype Expr
@@ -258,6 +261,8 @@
 
 (pop)
 
+;; ---
+;;
 ;; **Everything is a function**
 ;;
 ;; We have talked about relations being a special case of functions, but in fact, `constructor`s like `Add` and `Mul`

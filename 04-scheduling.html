@@ -184,7 +184,7 @@
 <p>Here we add the rest of the rules from the last section, but tagged with the appropriate rulesets.</p>
 <pre><code class="language-egglog">(<span class="keyword">function</span> upper-bound (Expr) BigRat :merge (min old new))
 (<span class="keyword">function</span> lower-bound (Expr) BigRat :merge (max old new))
-(with-<span class="keyword">ruleset</span> analysis
+(<span class="keyword">with-ruleset</span> analysis
     (<span class="keyword">rule</span> ((leq e (Num n))) ((<span class="keyword">set</span> (upper-bound e) n)))
     (<span class="keyword">rule</span> ((leq (Num n) e)) ((<span class="keyword">set</span> (lower-bound e) n)))
     (<span class="keyword">rule</span> ((= e (Add e1 e2)) (= (upper-bound e1) u1) (= (upper-bound e2) u2))
@@ -203,12 +203,12 @@
 )
 
 (<span class="keyword">relation</span> non-zero (Expr))
-(with-<span class="keyword">ruleset</span> analysis
+(<span class="keyword">with-ruleset</span> analysis
     (<span class="keyword">rule</span> ((< (upper-bound e) zero)) ((non-zero e)))
     (<span class="keyword">rule</span> ((> (lower-bound e) zero)) ((non-zero e)))
 )</code></pre>
 <p>Finally, we have the rules that depend on analyses but actually do optimization.</p>
-<pre><code class="language-egglog">(with-<span class="keyword">ruleset</span> optimizations
+<pre><code class="language-egglog">(<span class="keyword">with-ruleset</span> optimizations
     (<span class="keyword">rewrite</span> (Div x x)         (Num one) :<span class="keyword">when</span> ((non-zero x)))
     (<span class="keyword">rewrite</span> (Mul x (Div y x)) y         :<span class="keyword">when</span> ((non-zero x)))
 )</code></pre>
@@ -303,20 +303,38 @@
 <p>To this end, egglog has an scheduler mechanism. A scheduler can decide which matches are important and need to be applied,
  while others can be delayed or skipped. To use scheduler, there are two operations: <code>let-scheduler</code> and <code>run-with</code>.
  <code>(let-scheduler sched ..)</code> instantiates a scheduler <code>sched</code>, and <code>(run-with sched ruleset)</code> rules a ruleset with that scheduler.</p>
-<p>Currently, <code>egglog-experimental</code> implements one scheduler, <code>back-off</code>. The idea of <code>back-off</code> is that it will ban
- a rule from applying if that rule grows the e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.</p>
-<pre><code class="language-egglog">TODO: strengthen this example</code></pre>
-<p>Here, we can see that we can run 25 "iterations" without timing out. (If you change the <code>run-with bo</code>s to <code>run</code>s the worker thread will hang.)</p>
+<p>Currently, <code>egglog-experimental</code> implements one scheduler, <code>back-off</code>. (We will add our own scheduler
+ in Section 6.) The idea of <code>back-off</code> is that it will ban a rule from applying if that rule grows the
+ e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.</p>
+<pre><code class="language-egglog">(<span class="keyword">pop</span>)
+(<span class="keyword">pop</span>)
+(<span class="keyword">push</span>)</code></pre>
+<p>For the purpose of this example, we add this rule (again)</p>
+<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x (Num zero)) (Num zero) :<span class="keyword">ruleset</span> optimizations)</code></pre>
+<p>This program creates a cycle in the e-graph that associativity will use to blow up.
+ Use the web demo to visualize the cycle.</p>
+<pre><code class="language-egglog">(Mul (Var "x") (Num zero))
+(<span class="keyword">push</span>)
+(<span class="keyword">run</span> optimizations 1)</code></pre>
+<p>If we increase the number of iterations, we can watch the e-graph size rapidly increase.</p>
+<pre><code class="language-egglog">(<span class="keyword">print-size</span> Mul)
+(<span class="keyword">run</span> optimizations 1)
+(<span class="keyword">print-size</span> Mul)
+(<span class="keyword">run</span> optimizations 1)
+(<span class="keyword">print-size</span> Mul)
+(<span class="keyword">run</span> optimizations 1)
+(<span class="keyword">print-size</span> Mul)
+(<span class="keyword">run</span> optimizations 1)
+(<span class="keyword">print-size</span> Mul)
+(<span class="keyword">run</span> optimizations 1)</code></pre>
+<p>In contrast, if we use back-off, we can run many more iterations without getting stuck.
+ This will let us apply optimizations that don't rely on associativity in other parts of the e-graph.
+ (Of course, in this simplified example, there are no "other parts".)</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)
 (<span class="keyword">run-schedule</span>
     (<span class="keyword">let-scheduler</span> bo (back-off))
-    (<span class="keyword">repeat</span> 25
-        (<span class="keyword">seq</span>
-            (<span class="keyword">run-with</span> bo analysis)
-            (<span class="keyword">run-with</span> bo optimizations)
-         )
-    )
+    (<span class="keyword">repeat</span> 25 (<span class="keyword">run-with</span> bo optimizations))
 )</code></pre>
     </main>
     
