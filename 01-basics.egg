@@ -44,7 +44,7 @@
 ;; expression `(Add y x)`, and they should be equivalent.
 
 ;; Similarly, we can define the associativity rule for addition.
-(birewrite (Add x (Add y z)) (Add (Add x y) z))
+(rewrite (Add x (Add y z)) (Add (Add x y) z))
 
 ;; This rule says, if the e-graph contains expressions of the form `(Add x (Add y z))`, then the e-graph should also contain
 ;; the expression `(Add (Add x y) z)`, and they should be equivalent.
@@ -68,7 +68,7 @@
 
 ;; Let's also define commutativity and associativity for multiplication.
 (rewrite (Mul x y) (Mul y x))
-(birewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
+(rewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
 
 ;; `egglog` also defines a set of built-in functions over the primitive types, such as `+` and `*`.
 (extract (+ 1 2))
@@ -136,5 +136,10 @@
 ;;    even well-defined?
 
 ; A birewrite rule is useful when you would otherwise write out two rewrites.
+(birewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
+
 ; A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).
+(birewrite (Mul x y) (Mul y x))
+
 ; A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.
+; (birewrite (Mul x (Num 1)) x)

@@ -195,10 +195,12 @@
 ;; while others can be delayed or skipped. To use scheduler, there are two operations: `let-scheduler` and `run-with`.
 ;; `(let-scheduler sched ..)` instantiates a scheduler `sched`, and `(run-with sched ruleset)` rules a ruleset with that scheduler.
 ;;
-;; Currently, `egglog-experimental` implements one scheduler, `back-off`. The idea of `back-off` is that it will ban
-;; a rule from applying if that rule grows the e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.
-(pop 2)
-(push 1)
+;; Currently, `egglog-experimental` implements one scheduler, `back-off`. (We will add our own scheduler
+;; in Section 6.) The idea of `back-off` is that it will ban a rule from applying if that rule grows the
+;; e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.
+(pop)
+(pop)
+(push)
 
 ;; For the purpose of this example, we add this rule (again)
 (rewrite (Mul x (Num zero)) (Num zero) :ruleset optimizations)
@@ -206,7 +208,7 @@
 ;; This program creates a cycle in the e-graph that associativity will use to blow up.
 ;; Use the web demo to visualize the cycle.
 (Mul (Var "x") (Num zero))
-(push 1)
+(push)
 (run optimizations 1)
 
 ;; If we increase the number of iterations, we can watch the e-graph size rapidly increase.
@@ -224,8 +226,8 @@
 ;; In contrast, if we use back-off, we can run many more iterations without getting stuck.
 ;; This will let us apply optimizations that don't rely on associativity in other parts of the e-graph.
 ;; (Of course, in this simplified example, there are no "other parts".)
-(pop 1)
-(push 1)
+(pop)
+(push)
 (run-schedule
     (let-scheduler bo (back-off))
     (repeat 25 (run-with bo optimizations))

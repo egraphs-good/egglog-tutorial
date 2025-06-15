@@ -191,12 +191,11 @@
 ;; 1. In our lesson 1, it is tedious to write associativity and commutativity (AC) rules for
 ;;    every AC operators (e.g., Add, Mul, ...). One way to save us from this repetitive work
 ;;    is to parameterize over the operators.
-;;    In this program, instead of `Mul` and `Add`, `Expr` has a `Bop` operator
+;;    In the following program, instead of `Mul` and `Add`, `Expr` has a `Bop` operator
 ;;    that takes an operator kind and two operands.
-;;
 ;;     ```
-;;     (datatype BopKind (Add) (Mul) (Pow) (Xor) (LShift))
-;;     (datatype Expr (Bop BopKind Expr Expr))
+;;     (datatype BopKind (Add) (Mul) (Div))
+;;     (datatype Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
 ;;     ```
 ;;    First, add a relation `AcBopKind` that holds `BopKind`s which are associative and commutative.
 ;;    Second, insert the appropriate `BopKind`s into that relation.
@@ -204,11 +203,11 @@
 ;;    Finally, add a single rule that implements associativity for all `Bop`s with an `ACBopKind`.
 
 (push)
-(datatype BopKind (Add) (Mul) (Pow) (Xor) (LShift))
-(datatype Expr (Bop BopKind Expr Expr))
+(datatype BopKind (Add) (Mul) (Div))
+(datatype Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
 
 (relation AcBopKind (BopKind))
-(AcBopKind (Add)) (AcBopKind (Mul)) (AcBopKind (Xor))
+(AcBopKind (Add)) (AcBopKind (Mul))
 (rule (
     (= e (Bop k a b))
     (AcBopKind k)
