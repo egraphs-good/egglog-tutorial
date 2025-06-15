@@ -190,11 +190,14 @@
 <pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))</code></pre>
 <p>We will cover more details about schedules later in the tutorial.</p>
 <p><strong>Exercises:</strong></p>
-<p>Consider the variant of our last rule:
- <code>(rule ((path a b) (path b c))
-       ((path a c)))</code>
- Does this rule compute the same relation as the original rule? How does this rule 
+<p>Consider the variant of our last rule:</p>
+<p><code>(rule ((path a b) (path b c))
+       ((path a c)))</code></p>
+<p>Does this rule compute the same relation as the original rule? How does this rule 
  compare to the original rule? Hint: it's slow, why?</p>
+<pre><code> This rule will discover the path from `a` to `c` for every combination of subpaths, while.
+ the original rule will discover that path only once based on its last edge.
+</code></pre>
 <hr />
 <pre><code class="language-egglog">(<span class="keyword">pop</span>) ;; resets egglog
 (<span class="keyword">push</span>)</code></pre>

@@ -70,12 +70,17 @@
 ;; **Exercises:**
 ;; 
 ;; Consider the variant of our last rule:
+;;
 ;; ```
 ;; (rule ((path a b) (path b c))
 ;;       ((path a c)))
 ;; ```
+;;
 ;; Does this rule compute the same relation as the original rule? How does this rule 
 ;; compare to the original rule? Hint: it's slow, why?
+;;
+;;     This rule will discover the path from `a` to `c` for every combination of subpaths, while.
+;;     the original rule will discover that path only once based on its last edge.
 ;;
 ;; ---
 
