@@ -2,83 +2,31 @@ use std::io::Read;
 
 use egglog_experimental::ast::Command;
 use egglog_experimental::scheduler::Matches;
-use egglog_experimental::util::IndexMap;
 use egglog_experimental::{self as egglog, add_scheduler_builder, DynamicCostModel};
 use egglog_experimental::{
     ast::Literal,
-    extract::{CostModel},
+    extract::CostModel,
     new_experimental_egraph,
     prelude::{exprs::*, *},
     scheduler::Scheduler,
-    Term, TermDag,
 };
 
-use crate::ast::{Type};
+use crate::ast::Type;
 
 mod ast;
+mod util;
+use crate::util::*;
 
-fn program() -> &'static str {
+fn egglog_program() -> &'static str {
     include_str!("defn.egg")
 }
 
-fn to_egglog_expr(expr: &ast::CoreExpr) -> egglog::ast::Expr {
-    match expr {
-        ast::CoreExpr::SVar(name) | ast::CoreExpr::MVar(name) => var(name),
-        ast::CoreExpr::Num(value) => call("Num", vec![exprs::int(*value)]),
-        ast::CoreExpr::SAdd(left, right)
-        | ast::CoreExpr::SMul(left, right)
-        | ast::CoreExpr::MAdd(left, right)
-        | ast::CoreExpr::MMul(left, right)
-        | ast::CoreExpr::Scale(left, right)
-        | ast::CoreExpr::SSub(left, right)
-        | ast::CoreExpr::SDiv(left, right) => {
-            let left_expr = to_egglog_expr(left);
-            let right_expr = to_egglog_expr(right);
-            let constructor = constructor_to_string(expr);
-            call(constructor, vec![left_expr, right_expr])
-        }
-    }
-}
-
-fn constructor_to_string(constructor: &ast::CoreExpr) -> &str {
-    match constructor {
-        ast::CoreExpr::SAdd(..) => "SAdd",
-        ast::CoreExpr::SMul(..) => "SMul",
-        ast::CoreExpr::MAdd(..) => "MAdd",
-        ast::CoreExpr::MMul(..) => "MMul",
-        ast::CoreExpr::Scale(..) => "Scale",
-        ast::CoreExpr::SSub(..) => "SSub",
-        ast::CoreExpr::SDiv(..) => "SDiv",
-        _ => unreachable!("binary constructor expected"),
-    }
-}
-
-fn string_to_binary_constructor(
-    constructor: &str,
-    l: ast::CoreExpr,
-    r: ast::CoreExpr,
-) -> ast::CoreExpr {
-    match constructor {
-        "SAdd" => ast::CoreExpr::SAdd(Box::new(l), Box::new(r)),
-        "SMul" => ast::CoreExpr::SMul(Box::new(l), Box::new(r)),
-        "MAdd" => ast::CoreExpr::MAdd(Box::new(l), Box::new(r)),
-        "MMul" => ast::CoreExpr::MMul(Box::new(l), Box::new(r)),
-        "Scale" => ast::CoreExpr::Scale(Box::new(l), Box::new(r)),
-        "SSub" => ast::CoreExpr::SSub(Box::new(l), Box::new(r)),
-        "SDiv" => ast::CoreExpr::SDiv(Box::new(l), Box::new(r)),
-        _ => panic!("Invalid constructor: {}", constructor),
-    }
-}
-
 fn main() {
-    let mut egraph = new_experimental_egraph();
-    egraph
-        .parse_and_run_program(Some("defn.egg".to_string()), program())
-        .unwrap();
-
+    // Read from stdin
     let mut program = String::new();
     std::io::stdin().read_to_string(&mut program).unwrap();
 
+    // Parse to [`CoreBindings`]
     let bindings = ast::grammar::BindingsParser::new()
         .parse(&program)
         .expect("parsing bindings");
@@ -90,20 +38,42 @@ fn main() {
         }
     };
 
+    // Problem  1: run the egglog program in defn.egg
+    let mut egraph = new_experimental_egraph();
+    egraph
+        .parse_and_run_program(Some("defn.egg".to_string()), egglog_program())
+        .unwrap();
+
+    // Problem  2:
+    //
+    // For each variable in the declaration, bind the variable x to
+    // a corresponding (MVar x) and (SVar x)
+    //
+    // For each matrix declaration, additionally insert its dimension
+    // information into the "MatrixDim" relation in the E-graph:
+    //
+    //    (relation MatrixDim (String i64 i64))
+    //
     for decl in core_bindings.declares.iter() {
-        let m = &decl.var;
+        let x = &decl.var;
         if let Type::Matrix { nrows, ncols } = decl.ty {
             let program = format!(
-                "(MatrixDim \"{m}\" {nrows} {ncols})
-                (let {m} (MVar \"{m}\"))"
+                "(MatrixDim \"{x}\" {nrows} {ncols})
+                (let {x} (MVar \"{x}\"))"
             );
             egraph.parse_and_run_program(None, &program).unwrap();
         } else {
-            let program = format!("(let {m} (SVar \"{m}\"))");
+            let program = format!("(let {x} (SVar \"{x}\"))");
             egraph.parse_and_run_program(None, &program).unwrap();
         }
     }
 
+    // Problem  3:
+    //
+    // For each binding, bind the variable x to its corresponding definitions.
+    //
+    // We have provided [`to_egglog_expr`] function that converts a [`CoreExpr`]
+    // to an egglog expression [`egglog::ast::Expr`]
     for bind in core_bindings.bindings.iter() {
         let var = &bind.var;
         let expr = &bind.expr;
@@ -113,6 +83,27 @@ fn main() {
         egraph.run_program(vec![Command::Action(action)]).unwrap();
     }
 
+    {
+        egraph
+            .parse_and_run_program(None, "(run-schedule (saturate (run cost-analysis)))")
+            .unwrap();
+        // Get the cost before optimization
+        let output = core_bindings.bindings.last().unwrap();
+        let (sort, value) = egraph.eval_expr(&var(&output.var)).unwrap();
+        let cost_model = DynamicCostModel;
+        let (_termdag, _term, cost) = egraph
+            .extract_value_with_cost_model(&sort, value, cost_model)
+            .unwrap();
+        eprintln!("Cost before optimization: {cost}");
+    }
+
+    // Problem  4:
+    //
+    // Now we have inserted all the ASTs and definitions. We will run our rules.
+    // To start with, let's run our rules 20 times (`(run 20)`).
+
+    // egraph.parse_and_run_program(None, "(run 20)").unwrap();
+
     add_scheduler_builder("first-n".into(), Box::new(new_first_n_scheduler));
     let schedule = "
     (run-schedule 
@@ -121,83 +112,77 @@ fn main() {
       (saturate (run cost-analysis))
     )
     ";
-    // egraph.parse_and_run_program(None, "(run 20)").unwrap();
-    egraph.parse_and_run_program(None, schedule.into()).unwrap();
+    egraph.parse_and_run_program(None, schedule).unwrap();
 
+    // Problem  5:
+    //
+    // Extract the optimized program using the `DynamicCostModel` from egglog_experimental.
+    // The extracted program is a directed acyclic graph (DAG) and has type [`TermDag`]` and [`Term`].
+    // We have provided the method [`termdag_to_bindings`] to convert to [`CoreBindings`].
     let output = core_bindings.bindings.last().unwrap();
     let (sort, value) = egraph.eval_expr(&var(&output.var)).unwrap();
+    let cost_model = DynamicCostModel;
+    // let cost_model = AstDepthCostModel;
     let (termdag, term, cost) = egraph
-        .extract_value_with_cost_model(&sort, value, DynamicCostModel)
+        .extract_value_with_cost_model(&sort, value, cost_model)
         .unwrap();
     eprintln!("Cost after optimization: {cost}");
-    let bindings = termdag_to_bindings(core_bindings.declares, &termdag, &term);
-    println!("{}", bindings.to_string());
+    let bindings = util::termdag_to_bindings(core_bindings.declares, &termdag, &term);
+
+    // Print the optimized bindings
+    println!("{bindings}");
+
+    // Problem  6:
+    //
+    // Break down the rules into optimization rules and analysis rules.
+    // Improve the schedule above with the more refined rulesets.
 }
 
-pub fn termdag_to_bindings(
-    declares: Vec<ast::Declare>,
-    termdag: &TermDag,
-    term: &Term,
-) -> ast::CoreBindings {
-    fn process_term(
-        termdag: &TermDag,
-        term: &Term,
-        bindings: &mut IndexMap<String, ast::CoreExpr>,
-        name: String,
-    ) -> String {
-        if bindings.contains_key(&name) {
-            return name;
+// Problem  7:
+//
+// Fill in the blanks for the [`FirstNScheduler`]. FirstNScheduler
+// applies at most `n` matches of a rule in each iteration. Compared
+// to the default scheduler, it allows the E-graph grows more gently.
+//
+// Add this scheduler to egglog_experimental with
+//
+//     add_scheduler_builder("first-n".into(), Box::new(new_first_n_scheduler));
+//
+// Update the schedule so that the optimization ruleset uses this scheduler.
+pub fn new_first_n_scheduler(_egraph: &EGraph, exprs: &[egglog::ast::Expr]) -> Box<dyn Scheduler> {
+    assert!(exprs.len() == 1);
+    let egglog::ast::Expr::Lit(_, Literal::Int(n)) = exprs[0] else {
+        panic!("wrong arguments to first n scheduler");
+    };
+    Box::new(FirstNScheduler { n: n as usize })
+}
+
+#[derive(Clone)]
+struct FirstNScheduler {
+    n: usize,
+}
+
+impl Scheduler for FirstNScheduler {
+    fn filter_matches(&mut self, _rule: &str, _ruleset: &str, matches: &mut Matches) -> bool {
+        if matches.match_size() <= self.n {
+            matches.choose_all();
+        } else {
+            for i in 0..self.n {
+                matches.choose(i);
+            }
         }
-        match term {
-            Term::App(op, args) => match op.as_str() {
-                "SAdd" | "SMul" | "SSub" | "SDiv" | "Scale" | "MAdd" | "MMul" => {
-                    let left = termdag.get(args[0]);
-                    let lvar = process_term(termdag, left, bindings, format!("v{}", args[0]));
-                    let right = termdag.get(args[1]);
-                    let rvar = process_term(termdag, right, bindings, format!("v{}", args[1]));
-                    let (lchild, rchild) = if op.as_str() == "Scale" {
-                        (ast::CoreExpr::SVar(lvar), ast::CoreExpr::MVar(rvar))
-                    } else if op.as_str().starts_with("S") {
-                        (ast::CoreExpr::SVar(lvar), ast::CoreExpr::SVar(rvar))
-                    } else {
-                        (ast::CoreExpr::MVar(lvar), ast::CoreExpr::MVar(rvar))
-                    };
-                    let expr = string_to_binary_constructor(&op, lchild, rchild);
-
-                    bindings.insert(name.to_string(), expr);
-                    return name;
-                }
-                "MVar" | "SVar" => {
-                    let arg = termdag.get(args[0]);
-                    let Term::Lit(Literal::String(name)) = arg else {
-                        unreachable!()
-                    };
-                    return name.to_string();
-                }
-                "Num" => {
-                    let arg = termdag.get(args[0]);
-                    let Term::Lit(Literal::Int(value)) = arg else {
-                        unreachable!()
-                    };
-                    let expr = ast::CoreExpr::Num(*value);
-                    bindings.insert(name.to_string(), expr);
-                    return name;
-                }
-                _ => unreachable!(),
-            },
-            _ => unreachable!(),
-        };
+        matches.match_size() < self.n * 2
     }
-
-    let mut bindings: IndexMap<String, ast::CoreExpr> = Default::default();
-    process_term(termdag, term, &mut bindings, "e".into());
-    let bindings = bindings
-        .into_iter()
-        .map(|(name, expr)| ast::CoreBinding { var: name, expr })
-        .collect();
-    ast::CoreBindings { bindings, declares }
 }
 
+// Problem  8:
+//
+// We are going to define an alternative cost model that is not "sum of node costs".
+//
+// The cost model, named [`AstDepthCostModel`] assigns the depth of an AST as its cost,
+// so an extractor using this cost model will extract a term with the smallest depth.
+//
+// Use this cost model in our extractor
 pub struct AstDepthCostModel;
 
 pub type C = usize;
@@ -233,32 +218,4 @@ impl CostModel<C> for AstDepthCostModel {
     ) -> C {
         1
     }
-}
-
-#[derive(Clone)]
-struct FirstNScheduler {
-    n: usize,
-}
-
-impl Scheduler for FirstNScheduler {
-    fn filter_matches(&mut self, _rule: &str, _ruleset: &str, matches: &mut Matches) -> bool {
-        if matches.match_size() <= self.n {
-            matches.choose_all();
-        } else {
-            for i in 0..self.n {
-                matches.choose(i);
-            }
-        }
-        matches.match_size() < self.n * 2
-    }
-}
-
-pub fn new_first_n_scheduler(_egraph: &EGraph, exprs: &[egglog::ast::Expr]) -> Box<dyn Scheduler> {
-    assert!(exprs.len() == 1);
-    let egglog::ast::Expr::Lit(_, Literal::Int(n))  = exprs[0] else {
-        panic!("wrong arguments to first n scheduler");
-    };
-    Box::new(FirstNScheduler {
-        n: n as usize
-    })
 }
