@@ -299,26 +299,7 @@
  Second, insert the appropriate <code>BopKind</code>s into that relation.
  Third, add a single rule that implements commutativity for all <code>Bop</code>s with an <code>ACBopKind</code>.
  Finally, add a single rule that implements associativity for all <code>Bop</code>s with an <code>ACBopKind</code>.</p>
-<pre><code class="language-egglog">(<span class="keyword">push</span>)
-(<span class="keyword">datatype</span> BopKind (Add) (Mul) (Div))
-(<span class="keyword">datatype</span> Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
-
-(<span class="keyword">relation</span> AcBopKind (BopKind))
-(AcBopKind (Add)) (AcBopKind (Mul))
-(<span class="keyword">rule</span> (
-    (= e (Bop k a b))
-    (AcBopKind k)
-) (
-    (<span class="keyword">union</span> e (Bop k b a))
-))
-(<span class="keyword">rule</span> (
-    (= e (Bop k a (Bop k b c)))
-    (AcBopKind k)
-) (
-    (<span class="keyword">union</span> e (Bop k (Bop k a b) c))
-))
-(<span class="keyword">pop</span>)</code></pre>
-<p><strong>(universe relation)</strong> 
+<p><strong>(Universe relation)</strong> 
  One of the rewrite rules that we cannot make a <code>birewrite</code> in lesson 1 is the rule
  <code>(rewrite (Add x (Num 0)) x)</code>. This is because it is not clear what <code>x</code> is bound to 
  in the inverse rule, <code>(rewrite x (Add x (Num 0)))</code>. Therefore, defining this rule in egglog
@@ -332,23 +313,6 @@
  condition: <code>(rewrite x (Add x (Num 0)) :when ((universe x)))</code>, and similarly the birewrite
  rule <code>(birewrite (Add x (Num 0)) x :when ((universe x)))</code>, which introduces a bit of 
  overhead for the forward direction, but is more concise.</p>
-<pre><code class="language-egglog">(<span class="keyword">push</span>)
-(<span class="keyword">datatype</span> Expr
-  (Num i64)
-  (Var String)
-  (Add Expr Expr)
-  (Mul Expr Expr))
-
-(<span class="keyword">relation</span> universe (Expr))
-(<span class="keyword">rule</span> ((= e (Num x))) ((universe e)))
-(<span class="keyword">rule</span> ((= e (Var x))) ((universe e)))
-(<span class="keyword">rule</span> ((= e (Add x y))) ((universe e)))
-(<span class="keyword">rule</span> ((= e (Mul x y))) ((universe e)))
-
-(<span class="keyword">rule</span> ((universe x))
-      ((<span class="keyword">union</span> x (Add x (Num 0)))))
-
-(<span class="keyword">pop</span>)</code></pre>
 <hr />
 <p><strong>Everything is a function</strong></p>
 <p>We have talked about relations being a special case of functions, but in fact, <code>constructor</code>s like <code>Add</code> and <code>Mul</code>

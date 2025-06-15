@@ -234,26 +234,10 @@
  (run 10)
  (check (= expr3 expr4))
 </code></pre>
-<pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul a (Add b c)) (Add (Mul a b) (Mul a c)))
-
-; expr3 = 2 * (x + 3)
-(<span class="keyword">let</span> expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
-; expr4 = 6 + 2 * x
-(<span class="keyword">let</span> expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
-(<span class="keyword">fail</span> (<span class="keyword">check</span> (= expr3 expr4)))
-(<span class="keyword">run</span> 10)
-(<span class="keyword">check</span> (= expr3 expr4))</code></pre>
 <p><strong>(birewrite)</strong> Egglog has the <code>birewrite</code> keyword, which is similar to <code>rewrite</code>, but it allows rewriting
   in both directions. Try making some of the rules above into birewrite rules. Looking at the rules
   we have defined, when is a birewrite rule useful and when it is not? When is it not 
   even well-defined?</p>
-<p>A birewrite rule is useful when you would otherwise write out two rewrites.</p>
-<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Mul x (Mul y z)) (Mul (Mul x y) z))</code></pre>
-<p>A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).</p>
-<pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Mul x y) (Mul y x))</code></pre>
-<p>A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.</p>
-<pre><code> ; (birewrite (Mul x (Num 1)) x)
-</code></pre>
     </main>
     
     <footer>
