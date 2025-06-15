@@ -128,7 +128,7 @@
         <div class="nav-container">
             <h1>Tutorial for egglog</h1>
             <div class="nav-links">
-                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <span class="current">03 Analysis</span> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <span class="current">03 Analysis</span> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a> | <a href="live-coding.html">Live Coding</a> | <a href="time-distribution.html">Time Distribution</a>
             </div>
         </div>
     </nav>
@@ -189,7 +189,7 @@
     (leq e1 e2)
 ))</code></pre>
 <p>Note that we have not defined any rules for multiplication. This would require a more complex
- analysis on the positivity of the expressions, which we will cover later.</p>
+ analysis on the positivity of the expressions.</p>
 <p>On the other hand, these rules by themselves are pretty weak. For example, they cannot deduce <code>x + 1 &lt;= 2 + x</code>.
  But EqSat-style axiomatic rules make these rules more powerful:</p>
 <pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Add x (Add y z)) (Add (Add x y) z))
