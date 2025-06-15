@@ -189,7 +189,7 @@
     (leq e1 e2)
 ))</code></pre>
 <p>Note that we have not defined any rules for multiplication. This would require a more complex
- analysis on the positivity of the expressions, which we will cover later.</p>
+ analysis on the positivity of the expressions.</p>
 <p>On the other hand, these rules by themselves are pretty weak. For example, they cannot deduce <code>x + 1 &lt;= 2 + x</code>.
  But EqSat-style axiomatic rules make these rules more powerful:</p>
 <pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Add x (Add y z)) (Add (Add x y) z))

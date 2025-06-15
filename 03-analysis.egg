@@ -63,7 +63,7 @@
 ))
 
 ;; Note that we have not defined any rules for multiplication. This would require a more complex
-;; analysis on the positivity of the expressions, which we will cover later.
+;; analysis on the positivity of the expressions.
 ;;
 ;; On the other hand, these rules by themselves are pretty weak. For example, they cannot deduce `x + 1 <= 2 + x`.
 ;; But EqSat-style axiomatic rules make these rules more powerful:
