@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use lalrpop_util::lalrpop_mod;
 
 lalrpop_mod!(pub grammar);
@@ -74,20 +76,17 @@ pub enum Expr {
 impl Expr {
     pub fn lower(&self, env: &[(String, Type)]) -> Result<(CoreExpr, Type), TypeError> {
         match self {
-            Expr::Var(name) => {
-                // Look up the variable in the environment
-                match env.iter().find(|(var, _)| var == name) {
-                    Some((_, Type::Scalar)) => Ok((CoreExpr::SVar(name.clone()), Type::Scalar)),
-                    Some((_, Type::Matrix { nrows, ncols })) => Ok((
-                        CoreExpr::MVar(name.clone()),
-                        Type::Matrix {
-                            nrows: *nrows,
-                            ncols: *ncols,
-                        },
-                    )),
-                    None => Err(TypeError::UndeclaredVariable(name.clone())),
-                }
-            }
+            Expr::Var(name) => match env.iter().find(|(var, _)| var == name) {
+                Some((_, Type::Scalar)) => Ok((CoreExpr::SVar(name.clone()), Type::Scalar)),
+                Some((_, Type::Matrix { nrows, ncols })) => Ok((
+                    CoreExpr::MVar(name.clone()),
+                    Type::Matrix {
+                        nrows: *nrows,
+                        ncols: *ncols,
+                    },
+                )),
+                None => Err(TypeError::UndeclaredVariable(name.clone())),
+            },
             Expr::Num(n) => Ok((CoreExpr::Num(*n), Type::Scalar)),
             Expr::Add(left, right) => {
                 let l = left.lower(env)?;
@@ -131,7 +130,10 @@ impl Expr {
                         Ok((CoreExpr::SMul(Box::new(l.0), Box::new(r.0)), Type::Scalar))
                     }
                     (
-                        Type::Matrix { nrows: n, ncols: k1 },
+                        Type::Matrix {
+                            nrows: n,
+                            ncols: k1,
+                        },
                         Type::Matrix {
                             nrows: k2,
                             ncols: m,
@@ -193,11 +195,11 @@ pub enum Type {
     Matrix { nrows: usize, ncols: usize },
 }
 
-impl Type {
-    pub fn to_string(&self) -> String {
+impl Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Scalar => "R".to_string(),
-            Type::Matrix { nrows, ncols } => format!("[R; {nrows}x{ncols}]"),
+            Type::Scalar => write!(f, "R"),
+            Type::Matrix { nrows, ncols } => write!(f, "[R; {nrows}x{ncols}]"),
         }
     }
 }
@@ -208,21 +210,20 @@ pub struct CoreBindings {
     pub declares: Vec<Declare>,
 }
 
-impl CoreBindings {
-    pub fn to_string(&self) -> String {
-        let mut output = String::new();
+impl Display for CoreBindings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for decl in self.declares.iter() {
             let var = &decl.var;
-            let ty = decl.ty.to_string();
-            output.push_str(&format!("{var}: {ty}\n"));
+            let ty = &decl.ty;
+            writeln!(f, "{var}: {ty};")?;
         }
 
         for bind in self.bindings.iter() {
             let var = &bind.var;
-            let expr = &bind.expr.to_string();
-            output.push_str(&format!("{var} = {expr}\n"));
+            let expr = &bind.expr;
+            writeln!(f, "{var} = {expr};")?;
         }
-        output
+        Ok(())
     }
 }
 
@@ -245,33 +246,32 @@ pub enum CoreExpr {
     SSub(Box<CoreExpr>, Box<CoreExpr>),
     SDiv(Box<CoreExpr>, Box<CoreExpr>),
 }
-
-impl CoreExpr {
-    pub fn to_string(&self) -> String {
+impl Display for CoreExpr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CoreExpr::SVar(v) => v.to_string(),
-            CoreExpr::MVar(v) => v.to_string(),
-            CoreExpr::Num(n) => n.to_string(),
+            CoreExpr::SVar(v) => write!(f, "{v}"),
+            CoreExpr::MVar(v) => write!(f, "{v}"),
+            CoreExpr::Num(n) => write!(f, "{n}"),
             CoreExpr::SAdd(left, right) => {
-                format!("({} + {})", left.to_string(), right.to_string())
+                write!(f, "({} + {})", left, right)
             }
             CoreExpr::SMul(left, right) => {
-                format!("({} * {})", left.to_string(), right.to_string())
+                write!(f, "({} * {})", left, right)
             }
             CoreExpr::MAdd(left, right) => {
-                format!("({} + {})", left.to_string(), right.to_string())
+                write!(f, "({} + {})", left, right)
             }
             CoreExpr::MMul(left, right) => {
-                format!("({} * {})", left.to_string(), right.to_string())
+                write!(f, "({} * {})", left, right)
             }
             CoreExpr::Scale(left, right) => {
-                format!("({} * {})", left.to_string(), right.to_string())
+                write!(f, "({} * {})", left, right)
             }
             CoreExpr::SSub(left, right) => {
-                format!("({} - {})", left.to_string(), right.to_string())
+                write!(f, "({} - {})", left, right)
             }
             CoreExpr::SDiv(left, right) => {
-                format!("({} / {})", left.to_string(), right.to_string())
+                write!(f, "({} / {})", left, right)
             }
         }
     }
@@ -408,8 +408,8 @@ fn test_lowering() {
 
     // Test matrix-scalar multiplication
     let expr = Mul(
-        Box::new(Var("A".to_string())),
         Box::new(Var("x".to_string())),
+        Box::new(Var("A".to_string())),
     );
     assert!(expr.lower(&env).is_ok());
 

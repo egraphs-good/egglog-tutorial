@@ -12,7 +12,6 @@
         (Scale Scalar Matrix)
         (MAdd Matrix Matrix)
         (MMul Matrix Matrix)
-        ; (Transpose Matrix)
     )
 )
 
