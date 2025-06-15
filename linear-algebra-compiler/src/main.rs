@@ -11,7 +11,7 @@ use egglog_experimental::{
     scheduler::Scheduler,
 };
 
-use crate::ast::Type;
+use crate::ast::{CoreBindings, Type};
 
 mod ast;
 mod util;
@@ -40,9 +40,7 @@ fn main() {
 
     // Problem  1: run the egglog program in defn.egg
     let mut egraph = new_experimental_egraph();
-    egraph
-        .parse_and_run_program(Some("defn.egg".to_string()), egglog_program())
-        .unwrap();
+    todo!("Problem 1");
 
     // Problem  2:
     //
@@ -57,14 +55,9 @@ fn main() {
     for decl in core_bindings.declares.iter() {
         let x = &decl.var;
         if let Type::Matrix { nrows, ncols } = decl.ty {
-            let program = format!(
-                "(MatrixDim \"{x}\" {nrows} {ncols})
-                (let {x} (MVar \"{x}\"))"
-            );
-            egraph.parse_and_run_program(None, &program).unwrap();
+            todo!("problem 2")
         } else {
-            let program = format!("(let {x} (SVar \"{x}\"))");
-            egraph.parse_and_run_program(None, &program).unwrap();
+            todo!("Problem 2")
         }
     }
 
@@ -77,24 +70,8 @@ fn main() {
     for bind in core_bindings.bindings.iter() {
         let var = &bind.var;
         let expr = &bind.expr;
-        let expr = to_egglog_expr(expr);
-        let action = Action::Let(span!(), var.to_string(), expr);
-
-        egraph.run_program(vec![Command::Action(action)]).unwrap();
-    }
-
-    {
-        egraph
-            .parse_and_run_program(None, "(run-schedule (saturate (run cost-analysis)))")
-            .unwrap();
-        // Get the cost before optimization
-        let output = core_bindings.bindings.last().unwrap();
-        let (sort, value) = egraph.eval_expr(&var(&output.var)).unwrap();
-        let cost_model = DynamicCostModel;
-        let (_termdag, _term, cost) = egraph
-            .extract_value_with_cost_model(&sort, value, cost_model)
-            .unwrap();
-        eprintln!("Cost before optimization: {cost}");
+        
+        todo!("Problem 3")
     }
 
     // Problem  4:
@@ -102,17 +79,7 @@ fn main() {
     // Now we have inserted all the ASTs and definitions. We will run our rules.
     // To start with, let's run our rules 20 times (`(run 20)`).
 
-    // egraph.parse_and_run_program(None, "(run 20)").unwrap();
-
-    add_scheduler_builder("first-n".into(), Box::new(new_first_n_scheduler));
-    let schedule = "
-    (run-schedule 
-      (let-scheduler first-100 (first-n 100))
-      (repeat 100 (run-with first-100 optimization))
-      (saturate (run cost-analysis))
-    )
-    ";
-    egraph.parse_and_run_program(None, schedule).unwrap();
+    todo!("Problem 4");
 
     // Problem  5:
     //
@@ -120,14 +87,7 @@ fn main() {
     // The extracted program is a directed acyclic graph (DAG) and has type [`TermDag`]` and [`Term`].
     // We have provided the method [`termdag_to_bindings`] to convert to [`CoreBindings`].
     let output = core_bindings.bindings.last().unwrap();
-    let (sort, value) = egraph.eval_expr(&var(&output.var)).unwrap();
-    let cost_model = DynamicCostModel;
-    // let cost_model = AstDepthCostModel;
-    let (termdag, term, cost) = egraph
-        .extract_value_with_cost_model(&sort, value, cost_model)
-        .unwrap();
-    eprintln!("Cost after optimization: {cost}");
-    let bindings = util::termdag_to_bindings(core_bindings.declares, &termdag, &term);
+    let bindings: CoreBindings = todo!("Problem 5");;
 
     // Print the optimized bindings
     println!("{bindings}");
@@ -164,14 +124,7 @@ struct FirstNScheduler {
 
 impl Scheduler for FirstNScheduler {
     fn filter_matches(&mut self, _rule: &str, _ruleset: &str, matches: &mut Matches) -> bool {
-        if matches.match_size() <= self.n {
-            matches.choose_all();
-        } else {
-            for i in 0..self.n {
-                matches.choose(i);
-            }
-        }
-        matches.match_size() < self.n * 2
+        todo!("Problem 7")
     }
 }
 
@@ -188,7 +141,7 @@ pub struct AstDepthCostModel;
 pub type C = usize;
 impl CostModel<C> for AstDepthCostModel {
     fn fold(&self, _head: &str, children_cost: &[C], head_cost: C) -> C {
-        children_cost.iter().max().unwrap_or(&0) + head_cost
+        todo!("Problem 8")
     }
 
     fn enode_cost(
@@ -197,7 +150,7 @@ impl CostModel<C> for AstDepthCostModel {
         _func: &egglog::Function,
         _row: &egglog::FunctionRow,
     ) -> C {
-        1
+        todo!("Problem 8")
     }
 
     fn container_primitive(
@@ -207,7 +160,7 @@ impl CostModel<C> for AstDepthCostModel {
         _value: egglog::Value,
         element_costs: &[C],
     ) -> C {
-        *element_costs.iter().max().unwrap_or(&0)
+        todo!("Problem 8")
     }
 
     fn leaf_primitive(
@@ -216,6 +169,6 @@ impl CostModel<C> for AstDepthCostModel {
         _sort: &egglog::ArcSort,
         _value: egglog::Value,
     ) -> C {
-        1
+        todo!("Problem 8")
     }
 }

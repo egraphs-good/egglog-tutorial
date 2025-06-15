@@ -205,28 +205,8 @@
 ;; Second, insert the appropriate `BopKind`s into that relation.
 ;; Third, add a single rule that implements commutativity for all `Bop`s with an `ACBopKind`.
 ;; Finally, add a single rule that implements associativity for all `Bop`s with an `ACBopKind`.
-
-(push)
-(datatype BopKind (Add) (Mul) (Div))
-(datatype Expr (Num i64) (Var String) (Bop BopKind Expr Expr))
-
-(relation AcBopKind (BopKind))
-(AcBopKind (Add)) (AcBopKind (Mul))
-(rule (
-    (= e (Bop k a b))
-    (AcBopKind k)
-) (
-    (union e (Bop k b a))
-))
-(rule (
-    (= e (Bop k a (Bop k b c)))
-    (AcBopKind k)
-) (
-    (union e (Bop k (Bop k a b) c))
-))
-(pop)
-
-;; **(universe relation)** 
+;;
+;; **(Universe relation)** 
 ;; One of the rewrite rules that we cannot make a `birewrite` in lesson 1 is the rule
 ;; `(rewrite (Add x (Num 0)) x)`. This is because it is not clear what `x` is bound to 
 ;; in the inverse rule, `(rewrite x (Add x (Num 0)))`. Therefore, defining this rule in egglog
@@ -242,25 +222,7 @@
 ;; condition: `(rewrite x (Add x (Num 0)) :when ((universe x)))`, and similarly the birewrite
 ;; rule `(birewrite (Add x (Num 0)) x :when ((universe x)))`, which introduces a bit of 
 ;; overhead for the forward direction, but is more concise.
-
-(push)
-(datatype Expr
-  (Num i64)
-  (Var String)
-  (Add Expr Expr)
-  (Mul Expr Expr))
-
-(relation universe (Expr))
-(rule ((= e (Num x))) ((universe e)))
-(rule ((= e (Var x))) ((universe e)))
-(rule ((= e (Add x y))) ((universe e)))
-(rule ((= e (Mul x y))) ((universe e)))
-
-(rule ((universe x))
-      ((union x (Add x (Num 0)))))
-
-(pop)
-
+;;
 ;; ---
 ;;
 ;; **Everything is a function**
