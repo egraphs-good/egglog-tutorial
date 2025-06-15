@@ -44,7 +44,7 @@
 ;; expression `(Add y x)`, and they should be equivalent.
 
 ;; Similarly, we can define the associativity rule for addition.
-(rewrite (Add x (Add y z)) (Add (Add x y) z))
+(birewrite (Add x (Add y z)) (Add (Add x y) z))
 
 ;; This rule says, if the e-graph contains expressions of the form `(Add x (Add y z))`, then the e-graph should also contain
 ;; the expression `(Add (Add x y) z)`, and they should be equivalent.
@@ -68,7 +68,7 @@
 
 ;; Let's also define commutativity and associativity for multiplication.
 (rewrite (Mul x y) (Mul y x))
-(rewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
+(birewrite (Mul x (Mul y z)) (Mul (Mul x y) z))
 
 ;; `egglog` also defines a set of built-in functions over the primitive types, such as `+` and `*`.
 (extract (+ 1 2))
@@ -115,10 +115,26 @@
 ;;     (let expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
 ;;     ; expr4 = 6 + 2 * x
 ;;     (let expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+;;     (fail (check (= expr3 expr4)))
+;;     (run 10)
+;;     (check (= expr3 expr4))
 ;;     ```
-;; 2. Write a rule that asserts `x + 0 = x` and `x * 1` = x. Run egglog over the rules we have above and this rule.
-;;    Try to increase the number of iterations. What happens? Why?
-;; 3. Egglog has the `birewrite` keyword, which is similar to `rewrite`, but it allows rewriting
-;;    in both directions. Make the associativity rule above a birewrite rule. Looking at the rules
+
+(rewrite (Mul a (Add b c)) (Add (Mul a b) (Mul a c)))
+
+; expr3 = 2 * (x + 3)
+(let expr3 (Mul (Num 2) (Add (Var "x") (Num 3))))
+; expr4 = 6 + 2 * x
+(let expr4 (Add (Num 6) (Mul (Num 2) (Var "x"))))
+(fail (check (= expr3 expr4)))
+(run 10)
+(check (= expr3 expr4))
+
+;; 2. Egglog has the `birewrite` keyword, which is similar to `rewrite`, but it allows rewriting
+;;    in both directions. Try making some of the rules above into birewrite rules. Looking at the rules
 ;;    we have defined, when is a birewrite rule useful and when it is not? When is it not 
 ;;    even well-defined?
+
+; A birewrite rule is useful when you would otherwise write out two rewrites.
+; A birewrite rule is not useful when the two side are alpha-equivalent (equivalent up to names).
+; A birewrite rule is not well defined when the backwards rewrite rule contains unconstrained variables.
