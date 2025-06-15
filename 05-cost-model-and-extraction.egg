@@ -69,9 +69,9 @@
 
 ;; To show how this feature works, we define a toy language of matrices.
 
-;; `with-custom-cost` enables this feature for the constructors defined inside
+;; `with-dynamic-cost` enables this feature for the constructors defined inside
 
-(with-custom-cost 
+(with-dynamic-cost 
     (datatype Matrix
         ; A matrix constant with fixed size
         (MConst i64 i64)

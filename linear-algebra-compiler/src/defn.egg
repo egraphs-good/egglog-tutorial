@@ -6,7 +6,7 @@
     (SSub Scalar Scalar)
     (SDiv Scalar Scalar))
 
-(with-custom-cost
+(with-dynamic-cost
     (datatype Matrix
         (MVar String)
         (Scale Scalar Matrix)

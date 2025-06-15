@@ -185,8 +185,8 @@
  However, this is not expressive enough to cover the case where additional cost of an operation is not a fixed constant.
  We can use the <code>set-cost</code> feature provided by <code>egglog-experimental</code> to get more fine-grained control of individual e-node's cost.</p>
 <p>To show how this feature works, we define a toy language of matrices.</p>
-<p><code>with-custom-cost</code> enables this feature for the constructors defined inside</p>
-<pre><code class="language-egglog">(with-custom-cost 
+<p><code>with-dynamic-cost</code> enables this feature for the constructors defined inside</p>
+<pre><code class="language-egglog">(with-dynamic-cost 
     (<span class="keyword">datatype</span> Matrix
         ; A matrix constant with fixed size
         (MConst i64 i64)
