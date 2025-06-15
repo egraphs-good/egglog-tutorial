@@ -92,7 +92,7 @@
 (function upper-bound (Expr) BigRat :merge (min old new))
 (function lower-bound (Expr) BigRat :merge (max old new))
 
-;; In the above functions, unlike `leq`,we define upper bound and lower bound as functions from
+;; In the above functions, unlike `leq`, we define upper bound and lower bound as functions from
 ;; expressions to a unique number.
 ;; This is because we are always interested in the tightest upper bound
 ;; and lower bounds, so 

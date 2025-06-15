@@ -212,7 +212,7 @@
  or lower bounded by certain numbers, i.e., interval analysis:</p>
 <pre><code class="language-egglog">(<span class="keyword">function</span> upper-bound (Expr) BigRat :merge (min old new))
 (<span class="keyword">function</span> lower-bound (Expr) BigRat :merge (max old new))</code></pre>
-<p>In the above functions, unlike <code>leq</code>,we define upper bound and lower bound as functions from
+<p>In the above functions, unlike <code>leq</code>, we define upper bound and lower bound as functions from
  expressions to a unique number.
  This is because we are always interested in the tightest upper bound
  and lower bounds, so </p>
