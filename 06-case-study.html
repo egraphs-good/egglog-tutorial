@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title># Case study: LA compiler - egglog tutorial</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+            background-color: #fafafa;
+        }
+        
+        .tutorial-nav {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin: -20px -20px 2rem -20px;
+            border-bottom: 3px solid #3498db;
+        }
+        
+        .nav-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .tutorial-nav h1 {
+            margin: 0 0 0.5rem 0;
+            color: #ecf0f1;
+            font-size: 1.5rem;
+        }
+        
+        .nav-links a {
+            color: #3498db;
+            text-decoration: none;
+            margin: 0 0.5rem;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-links a:hover {
+            background-color: rgba(52, 152, 219, 0.2);
+        }
+        
+        .nav-links .current {
+            background-color: #3498db;
+            color: white;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            margin: 0 0.5rem;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 0.5rem;
+        }
+        
+        p {
+            margin: 1rem 0;
+            text-align: justify;
+        }
+        
+        code {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 3px;
+            padding: 0.2rem 0.4rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        pre {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+        
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        /* egglog syntax highlighting */
+        .keyword { color: #e74c3c; font-weight: bold; }
+
+        
+        .language-egglog {
+            color: #2c3e50;
+        }
+        
+        footer {
+            margin-top: 3rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 600px) {
+            .nav-links {
+                font-size: 0.9rem;
+            }
+            
+            .nav-links a, .nav-links .current {
+                margin: 0 0.2rem;
+                padding: 0.2rem 0.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="tutorial-nav">
+        <div class="nav-container">
+            <h1>Tutorial for egglog</h1>
+            <div class="nav-links">
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <a href="03-analysis.html">03 Analysis</a> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a> | <span class="current">06 Case Study</span>
+            </div>
+        </div>
+    </nav>
+    
+    
+    <main>
+        <h1># Case study: LA compiler</h1>
+        <p>In this section, we will learn about functionalities egglog provides as a Rust library.
+ Besides providing many basic operations over the E-graphs in Rust like its predecessor 
+ <a href="https://github.com/egraphs-good/egg">egg</a>,
+ egglog allows extensions in many aspects: base values, primitive functions, containers,
+ schedulers, commands, etc. </p>
+<p>For the first half of the case study, we will use the E-graph operations egglog provides to
+ build a compiler for linear algebra. For the second half, we will showcase how we can extend
+ egglog with application-specific scheduler and cost models.</p>
+<p>The code is accessible at this <a href="https://github.com/egraphs-good/egglog-tutorial/tree/main/case-study-linear-algebra-compiler">GitHub directory</a>.
+ To see the answer to each question, please take a look at the <code>solutions</code> branch.</p>
+<p><strong>Language for Linear Algebra</strong></p>
+<p>The input language for our compiler is simple straghtline programs
+ consisting of a list of declarations, followed by a list
+ of bindings. Each declaration declares an input from the user and has the form</p>
+<pre><code> V: Type;
+</code></pre>
+<p>where <code>V</code> is a variable name and <code>Type</code> is either <code>R</code> (reals) or <code>[R; NxM]</code> (matrix of dimension <code>N x M</code>, where <code>N</code> and <code>M</code> are natural numbers).</p>
+<p>Each binding has the form</p>
+<pre><code> V = E;
+</code></pre>
+<p>where <code>V</code> is a variable name and <code>E</code> is a variable, a number, or binary expressions with
+ operators  <code>*</code>, <code>/</code>, <code>+</code>, <code>-</code>. </p>
+<p>For example, below is a General Matrix-Multiply (GEMM) operation expressed in our DSL.</p>
+<pre><code> a: R;
+ b: R;
+ A: [R; 32x32];
+ B: [R; 32x32];
+ C: [R; 32x32];
+ R = a*(A*B)+b*C;
+</code></pre>
+<p>Note that the semantics of binary operators are overloaded: <code>*</code> can mean any of matrix 
+ multiplication, scalar-matrix multiplication, or scalar multiplication, depending on the types
+ of its operands.</p>
+<p>The parser for this language has been implemented and you shouldn't need to worry about it
+ for the purpose of this section. The result of parsing is stored in a <code>src/ast.rs:CoreBindings</code> struct.</p>
+<p><strong>Part 1: Building the initial e-graph</strong></p>
+<p>In this part, we will process the parsed expressions and turn them into egglog ASTs.
+ To start, take a look at the schema definitions in <code>src/defn.egg</code>.
+ There are several ways of running egglog in Rust: the user can call 
+ <code>EGraph::parse_and_run_program</code> with the program string, call <code>EGraph::run_program</code> with a 
+ command AST, or define rules using the convenience method provided in <code>egglog::prelude::*</code>. In 
+ this part, we will use <code>EGraph::parse_and_run_program</code> for Problems 1 and 2, and 
+ <code>EGraph::run_program</code>  for Problem 3.</p>
+<p><strong>Part 2: Running optimizations</strong></p>
+<p>We then run the rules we defined in <code>src/defn.egg</code> to grow the e-graph (Problem 4). 
+ After the e-graph is grown, we will run e-graph extraction to obtain the optimized program 
+ (Problem 5). To extract a program from the e-graph, you can use 
+ <code>EGraph::extract_value_with_cost_model</code>, which requires a cost model as the input.
+ Since we used dynamic cost (via <code>set-cost</code>) in our egglog program, we need to use 
+ <code>DynamicCostModel</code> from <code>egglog-experimental</code> to ensure the cost incorporates those dynamically set.</p>
+<p><strong>Part 3: Custom scheduling and cost models</strong></p>
+<p>In this part, we will further customize egglog's capability.
+ In Problem 7, we will implement <code>FirstNScheduler</code>, which applies at most <code>N</code> matches in each iteration.
+ Every scheduler in <code>egglog</code> needs to implement a <code>filter_matches</code> method, which takes rule metainfo and a <code>Matches</code> struct.
+ The <code>Matches</code> struct encapsulates a set of matches and allows users to choose the
+ subset of matches to be applied.
+ Matches that are not chosen for application will be delayed for scheduling to the next iteration.
+ Additionally, <code>filter_matches</code> returns a boolean flag, indicating whether the next run of the 
+ rule needs to search the database again to fetch more matches.
+ For instance, if the scheduler decides to not mark any match for application in the current 
+ iteration, it may also not want to request more matches until the current batch of matches is 
+ applied.</p>
+<p>In problem 8, we will customize the cost model. We will define a cost model that prefers terms 
+ with smaller depth. Such a cost model is useful when e.g., we want to minimize the depth of 
+ computation for maximal parallelism. The cost model can be defined in egglog by implementing
+ the <code>CostModel</code> trait, which requires the user to define the cost of an e-node, a container 
+ node, a base value, and additionally, the cost of an AST given the cost of the node itself 
+ and its children.</p>
+    </main>
+    
+    <footer>
+        <p>Generated from <code>06-case-study.egg</code> | <a href="https://github.com/egraphs-good/egglog" target="_blank">The egglog project</a></p>
+    </footer>
+</body>
+</html>

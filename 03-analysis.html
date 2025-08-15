@@ -128,7 +128,7 @@
         <div class="nav-container">
             <h1>Tutorial for egglog</h1>
             <div class="nav-links">
-                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <span class="current">03 Analysis</span> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <span class="current">03 Analysis</span> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a> | <a href="06-case-study.html">06 Case Study</a>
             </div>
         </div>
     </nav>
@@ -328,45 +328,6 @@
 <pre><code> (run-schedule (saturate (run)))
  (extract (FreeVars expr3))
 </code></pre>
-<pre><code class="language-egglog">(<span class="keyword">sort</span> FreeVarSet (Set String))
-(<span class="keyword">extract</span> (<span class="keyword">set</span>-of "1" "1"))
-(<span class="keyword">function</span> FreeVars (Expr) FreeVarSet :merge (<span class="keyword">set</span>-intersect old new))
-
-(<span class="keyword">rule</span> (
-    (= e (Num a))
-) (
-    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-of))
-))
-(<span class="keyword">rule</span> (
-    (= e (Var a))
-) (
-    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-of a))
-))
-(<span class="keyword">rule</span> (
-    (= e (Add a b))
-    (= f (FreeVars a))
-    (= g (FreeVars b))
-) (
-    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-<span class="keyword">union</span> f g))
-))
-(<span class="keyword">rule</span> (
-    (= e (Mul a b))
-    (= f (FreeVars a))
-    (= g (FreeVars b))
-) (
-    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-<span class="keyword">union</span> f g))
-))
-(<span class="keyword">rule</span> (
-    (= e (Div a b))
-    (= f (FreeVars a))
-    (= g (FreeVars b))
-) (
-    (<span class="keyword">set</span> (FreeVars e) (<span class="keyword">set</span>-<span class="keyword">union</span> f g))
-))
-
-
-(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
-(<span class="keyword">extract</span> (FreeVars expr3))</code></pre>
     </main>
     
     <footer>

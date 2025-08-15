@@ -247,25 +247,7 @@
 ;; condition: `(rewrite x (Add x (Num 0)) :when ((universe x)))`, and similarly the birewrite
 ;; rule `(birewrite (Add x (Num 0)) x :when ((universe x)))`, which introduces a bit of 
 ;; overhead for the forward direction, but is more concise.
-
-(push)
-(datatype Expr
-  (Num i64)
-  (Var String)
-  (Add Expr Expr)
-  (Mul Expr Expr))
-
-(relation universe (Expr))
-(rule ((= e (Num x))) ((universe e)))
-(rule ((= e (Var x))) ((universe e)))
-(rule ((= e (Add x y))) ((universe e)))
-(rule ((= e (Mul x y))) ((universe e)))
-
-(rule ((universe x))
-      ((union x (Add x (Num 0)))))
-
-(pop)
-
+;;
 ;; ---
 ;;
 ;; **Everything is a function**

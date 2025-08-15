@@ -1,0 +1,88 @@
+;; # Case study: LA compiler
+
+;; In this section, we will learn about functionalities egglog provides as a Rust library.
+;; Besides providing many basic operations over the E-graphs in Rust like its predecessor 
+;; [egg](https://github.com/egraphs-good/egg),
+;; egglog allows extensions in many aspects: base values, primitive functions, containers,
+;; schedulers, commands, etc. 
+;;
+;; For the first half of the case study, we will use the E-graph operations egglog provides to
+;; build a compiler for linear algebra. For the second half, we will showcase how we can extend
+;; egglog with application-specific scheduler and cost models.
+
+;; The code is accessible at this [GitHub directory](https://github.com/egraphs-good/egglog-tutorial/tree/main/case-study-linear-algebra-compiler).
+;; To see the answer to each question, please take a look at the `solutions` branch.
+
+;; **Language for Linear Algebra**
+;; 
+;; The input language for our compiler is simple straghtline programs
+;; consisting of a list of declarations, followed by a list
+;; of bindings. Each declaration declares an input from the user and has the form
+;; 
+;;     V: Type;
+;; 
+;; where `V` is a variable name and `Type` is either `R` (reals) or `[R; NxM]` (matrix of dimension `N x M`, where `N` and `M` are natural numbers).
+;; 
+;; Each binding has the form
+;; 
+;;     V = E;
+;; 
+;; where `V` is a variable name and `E` is a variable, a number, or binary expressions with
+;; operators  `*`, `/`, `+`, `-`. 
+;; 
+;; For example, below is a General Matrix-Multiply (GEMM) operation expressed in our DSL.
+;; 
+;;     a: R;
+;;     b: R;
+;;     A: [R; 32x32];
+;;     B: [R; 32x32];
+;;     C: [R; 32x32];
+;;     R = a*(A*B)+b*C;
+;; 
+;; Note that the semantics of binary operators are overloaded: `*` can mean any of matrix 
+;; multiplication, scalar-matrix multiplication, or scalar multiplication, depending on the types
+;; of its operands.
+;; 
+;; The parser for this language has been implemented and you shouldn't need to worry about it
+;; for the purpose of this section. The result of parsing is stored in a `src/ast.rs:CoreBindings` struct.
+;; 
+;; **Part 1: Building the initial e-graph**
+;; 
+;; In this part, we will process the parsed expressions and turn them into egglog ASTs.
+;; To start, take a look at the schema definitions in `src/defn.egg`.
+;; There are several ways of running egglog in Rust: the user can call 
+;; `EGraph::parse_and_run_program` with the program string, call `EGraph::run_program` with a 
+;; command AST, or define rules using the convenience method provided in `egglog::prelude::*`. In 
+;; this part, we will use `EGraph::parse_and_run_program` for Problems 1 and 2, and 
+;; `EGraph::run_program`  for Problem 3.
+;; 
+;; **Part 2: Running optimizations**
+;; 
+;; We then run the rules we defined in `src/defn.egg` to grow the e-graph (Problem 4). 
+;; After the e-graph is grown, we will run e-graph extraction to obtain the optimized program 
+;; (Problem 5). To extract a program from the e-graph, you can use 
+;; `EGraph::extract_value_with_cost_model`, which requires a cost model as the input.
+;; Since we used dynamic cost (via `set-cost`) in our egglog program, we need to use 
+;; `DynamicCostModel` from `egglog-experimental` to ensure the cost incorporates those dynamically set.
+;; 
+;; **Part 3: Custom scheduling and cost models**
+;; 
+;; In this part, we will further customize egglog's capability.
+;; In Problem 7, we will implement `FirstNScheduler`, which applies at most `N` matches in each iteration.
+;; Every scheduler in `egglog` needs to implement a `filter_matches` method, which takes rule metainfo and a `Matches` struct.
+;; The `Matches` struct encapsulates a set of matches and allows users to choose the
+;; subset of matches to be applied.
+;; Matches that are not chosen for application will be delayed for scheduling to the next iteration.
+;; Additionally, `filter_matches` returns a boolean flag, indicating whether the next run of the 
+;; rule needs to search the database again to fetch more matches.
+;; For instance, if the scheduler decides to not mark any match for application in the current 
+;; iteration, it may also not want to request more matches until the current batch of matches is 
+;; applied.
+;; 
+;; In problem 8, we will customize the cost model. We will define a cost model that prefers terms 
+;; with smaller depth. Such a cost model is useful when e.g., we want to minimize the depth of 
+;; computation for maximal parallelism. The cost model can be defined in egglog by implementing
+;; the `CostModel` trait, which requires the user to define the cost of an e-node, a container 
+;; node, a base value, and additionally, the cost of an AST given the cost of the node itself 
+;; and its children.
+

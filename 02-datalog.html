@@ -128,7 +128,7 @@
         <div class="nav-container">
             <h1>Tutorial for egglog</h1>
             <div class="nav-links">
-                <a href="01-basics.html">01 Basics</a> | <span class="current">02 Datalog</span> | <a href="03-analysis.html">03 Analysis</a> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+                <a href="01-basics.html">01 Basics</a> | <span class="current">02 Datalog</span> | <a href="03-analysis.html">03 Analysis</a> | <a href="04-scheduling.html">04 Scheduling</a> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a> | <a href="06-case-study.html">06 Case Study</a>
             </div>
         </div>
     </nav>
@@ -335,23 +335,6 @@
  condition: <code>(rewrite x (Add x (Num 0)) :when ((universe x)))</code>, and similarly the birewrite
  rule <code>(birewrite (Add x (Num 0)) x :when ((universe x)))</code>, which introduces a bit of 
  overhead for the forward direction, but is more concise.</p>
-<pre><code class="language-egglog">(<span class="keyword">push</span>)
-(<span class="keyword">datatype</span> Expr
-  (Num i64)
-  (Var String)
-  (Add Expr Expr)
-  (Mul Expr Expr))
-
-(<span class="keyword">relation</span> universe (Expr))
-(<span class="keyword">rule</span> ((= e (Num x))) ((universe e)))
-(<span class="keyword">rule</span> ((= e (Var x))) ((universe e)))
-(<span class="keyword">rule</span> ((= e (Add x y))) ((universe e)))
-(<span class="keyword">rule</span> ((= e (Mul x y))) ((universe e)))
-
-(<span class="keyword">rule</span> ((universe x))
-      ((<span class="keyword">union</span> x (Add x (Num 0)))))
-
-(<span class="keyword">pop</span>)</code></pre>
 <hr />
 <p><strong>Everything is a function</strong></p>
 <p>We have talked about relations being a special case of functions, but in fact, <code>constructor</code>s like <code>Add</code> and <code>Mul</code>

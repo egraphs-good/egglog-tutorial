@@ -128,7 +128,7 @@
         <div class="nav-container">
             <h1>Tutorial for egglog</h1>
             <div class="nav-links">
-                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <a href="03-analysis.html">03 Analysis</a> | <span class="current">04 Scheduling</span> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a>
+                <a href="01-basics.html">01 Basics</a> | <a href="02-datalog.html">02 Datalog</a> | <a href="03-analysis.html">03 Analysis</a> | <span class="current">04 Scheduling</span> | <a href="05-cost-model-and-extraction.html">05 Cost Model And Extraction</a> | <a href="06-case-study.html">06 Case Study</a>
             </div>
         </div>
     </nav>
@@ -148,6 +148,7 @@
 (<span class="keyword">let</span> zero (bigrat (bigint 0) (bigint 1)))
 (<span class="keyword">let</span> one (bigrat (bigint 1) (bigint 1)))
 (<span class="keyword">let</span> two (bigrat (bigint 2) (bigint 1)))</code></pre>
+<p><strong>Rulesets</strong></p>
 <p>Different from lesson 3, we organize our rules into "rulesets"
  A ruleset is exactly what it sounds like; a set of rules.
  We can declare rulesets using the <code>ruleset</code> command.</p>
@@ -155,8 +156,8 @@
 (<span class="keyword">ruleset</span> analysis)</code></pre>
 <p>We can add rules to rulesets using the <code>:ruleset</code> annotation on <code>rule</code>s, <code>rewrite</code>s, and <code>birewrite</code>s.
  Leaving off <code>:ruleset</code> causes the rule to be added to the default ruleset, which is what we've shown so far.
- We can run rulesets using <code>(run ruleset iters)</code>.
- The <code>leq</code> rules are purely analysis rules, because they don't add any new <code>Expr</code> nodes to the e-graph.</p>
+ We can run rulesets using <code>(run ruleset iters)</code>, or <code>(run iters)</code> for running the default ruleset.</p>
+<p>Here, we add <code>leq</code> rules to the <code>analysis</code> ruleset, because they don't add new <code>Expr</code> nodes to the e-graph.</p>
 <pre><code class="language-egglog">(<span class="keyword">relation</span> leq (Expr Expr))
 (<span class="keyword">rule</span> ((leq e1 e2) (leq e2 e3)) ((leq e1 e3)) :<span class="keyword">ruleset</span> analysis)
 (<span class="keyword">rule</span> ((= e1 (Num n1)) (= e2 (Num n2)) (<= n1 n2)) ((leq e1 e2)) :<span class="keyword">ruleset</span> analysis)
@@ -164,7 +165,7 @@
 (<span class="keyword">rule</span> ((= e1 (Add e1a e1b)) (= e2 (Add e2a e2b)) (leq e1a e2a) (leq e1b e2b))
       ((leq e1 e2))
       :<span class="keyword">ruleset</span> analysis)</code></pre>
-<p>In contrast, these axiomatic rules are doing optimizations.</p>
+<p>In contrast, the following axiomatic rules are doing optimizations, so we add them to the <code>optimizations</code> ruleset.</p>
 <pre><code class="language-egglog">(<span class="keyword">birewrite</span> (Add x (Add y z)) (Add (Add x y) z) :<span class="keyword">ruleset</span> optimizations)
 (<span class="keyword">birewrite</span> (Mul x (Mul y z)) (Mul (Mul x y) z) :<span class="keyword">ruleset</span> optimizations)
 (<span class="keyword">rewrite</span> (Add x y) (Add y x) :<span class="keyword">ruleset</span> optimizations)
@@ -174,12 +175,13 @@
 (<span class="keyword">rewrite</span> (Mul x (Num one)) x :<span class="keyword">ruleset</span> optimizations)
 (<span class="keyword">rewrite</span> (Add (Num a) (Num b)) (Num (+ a b)) :<span class="keyword">ruleset</span> optimizations)
 (<span class="keyword">rewrite</span> (Mul (Num a) (Num b)) (Num (* a b)) :<span class="keyword">ruleset</span> optimizations)</code></pre>
-<p>It is tedious and error-prone to manually annotate each rule with a ruleset.
- <code>egglog-experimental</code> provides a convenience syntax <code>with-ruleset</code>:</p>
-<p><code>(with-ruleset optimizations
-     (birewrite (Add x (Add y z)) (Add (Add x y) z))
-     ...
- )</code></p>
+<p>It is tedious and error-prone to manually annotate each rule with a ruleset,
+ so <code>egglog-experimental</code> provides a convenience syntax <code>with-ruleset</code>:</p>
+<pre><code> (with-ruleset optimizations
+   (birewrite (Add x (Add y z)) (Add (Add x y) z))
+   ...
+ )
+</code></pre>
 <p>From now on, we will use this syntax.</p>
 <p>Here we add the rest of the rules from the last section, but tagged with the appropriate rulesets.</p>
 <pre><code class="language-egglog">(<span class="keyword">function</span> upper-bound (Expr) BigRat :merge (min old new))
@@ -207,7 +209,7 @@
     (<span class="keyword">rule</span> ((< (upper-bound e) zero)) ((non-zero e)))
     (<span class="keyword">rule</span> ((> (lower-bound e) zero)) ((non-zero e)))
 )</code></pre>
-<p>Finally, we have the rules that depend on analyses but actually do optimization.</p>
+<p>Finally, we have optimization rules that depend on the analysis rules we defined above.</p>
 <pre><code class="language-egglog">(<span class="keyword">with-ruleset</span> optimizations
     (<span class="keyword">rewrite</span> (Div x x)         (Num one) :<span class="keyword">when</span> ((non-zero x)))
     (<span class="keyword">rewrite</span> (Mul x (Div y x)) y         :<span class="keyword">when</span> ((non-zero x)))
@@ -216,118 +218,136 @@
  a cancelling division.</p>
 <pre><code class="language-egglog">(<span class="keyword">push</span>)
 ; a + (b + (c + (d + (e + f))))
-(<span class="keyword">let</span> addition-chain (Add (Var "a") (Add (Var "b") (Add (Var "c") (Add (Var "d") (Add (Var "e") (Var "f")))))))
+(<span class="keyword">let</span> addition-chain 
+    (Add (Var "a") (Add (Var "b") 
+        (Add (Var "c") (Add (Var "d") 
+            (Add (Var "e") (Var "f")))))))
 ; 1 + 1 + 1 + 1 + 2
-(<span class="keyword">let</span> nonzero-expr (Add (Num one) (Add (Num one) (Add (Num one) (Add (Num one) (Num two))))))
+(<span class="keyword">let</span> nonzero-expr 
+    (Add (Num one) (Add (Num one) 
+        (Add (Num one) (Add (Num one) (Num two))))))
 (<span class="keyword">let</span> expr (Mul nonzero-expr (Div addition-chain nonzero-expr)))</code></pre>
-<p>We want the following check to pass after running the rules</p>
+<p>We want the following check to pass after running the rules.</p>
 <pre><code class="language-egglog">(<span class="keyword">fail</span> (<span class="keyword">check</span> (= expr addition-chain)))</code></pre>
-<p>If we try to run both rulesets directly, egglog will spend lots of effort reassociating and
+<p>To make this check pass, we have to first discover that <code>nonzero-expr</code> is indeed non-zero,
+ which allows the rule from <code>(Mul x (Div y x))</code> to <code>y</code> to fire.
+ On the other hand, if we apply the optimization rules, we risk the exponential blowup from 
+ the associative and commutative permutations of the <code>addition-chain</code>.</p>
+<p>Therefore, if we try to run both rulesets directly, egglog will spend lots of effort reassociating and
  commuting the terms in the <code>addition-chain</code>, even though the optimization that we actually
- want to run (cancelling division) only takes one iteration. However, that optimization requires
- knowing a fact that takes multiple iterations to compute (propagating lower- and upper-bounds
- through <code>nonzero-expr</code>). Thus, we can build a more efficient schedule for this specific program.</p>
+ want to run only takes one iteration. However, that optimization requires knowing a fact
+ that takes multiple iterations to compute (propagating lower- and upper-bounds
+ through <code>nonzero-expr</code>). We can build a more efficient <em>schedule</em>.</p>
 <pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
+<p><strong>Schedules</strong></p>
 <p>Start by saturating the analysis rules, fully propagating the <code>non-zero</code> information <em>without</em>
  adding any nodes to the e-graph.</p>
 <pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span> analysis)))</code></pre>
 <p>Then, just run one iteration of the <code>optimizations</code> ruleset.</p>
 <pre><code class="language-egglog">(<span class="keyword">run</span> optimizations 1)</code></pre>
+<p>Or equivalently,</p>
+<pre><code> (run-schedule 
+     (saturate (run analysis))
+     (run optimizations))
+</code></pre>
 <p>This makes our check pass</p>
 <pre><code class="language-egglog">(<span class="keyword">check</span> (= expr addition-chain))</code></pre>
-<p>Print the size of the e-graph and the best expression reached for later.</p>
-<pre><code class="language-egglog">(<span class="keyword">print-size</span>)
-(<span class="keyword">extract</span> expr)</code></pre>
 <p>While the above program is effective at optimizing that specific program, it would fail if
- we had a program where we had to interleave the optimizations and analyses. There is a common
- pattern of schedules which we use to fix this, which use all four of the variants in our scheduling
- language: <code>repeat</code>, <code>seq</code>, <code>saturate</code>, and <code>run</code>.</p>
+ we had a slightly more complex program where we had to interleave the optimizations and analyses
+ to derive the optimal program. 
+ For expressing more complex schedules like these, <code>egglog</code> supports a scheduling sub-language,
+ with primitives <code>repeat</code>, <code>seq</code>, <code>saturate</code>, and <code>run</code>.</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)</code></pre>
-<p>The idea behind this schedule is to always saturate analyses before running optimizations.
- We then wrap that schedule in a <code>repeat</code> block to give us control over how long to run egglog.
- Using <code>repeat 1</code> gives us the same schedule as before, but now we can increase the iteration
- count if we want better results and have the time/space budget for it.</p>
+<p>The idea behind the following schedule is to always saturate analyses before running optimizations.
+ This combination is wrapped in a <code>repeat</code> block to give us control over how long to run egglog.
+ With <code>repeat 1</code> it is the same schedule as before, but now we can increase the iteration
+ count if we want to optimize harder with more time and space budget.</p>
 <pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 2
-        (<span class="keyword">seq</span>
-            (saturate (<span class="keyword">run</span> analysis))
-            (<span class="keyword">run</span> optimizations)
-         )
-    )
-)</code></pre>
-<p>Running more iterations does not help this example per se,
- but if we had started with a slightly different program to optimize...</p>
+        (saturate (<span class="keyword">run</span> analysis))
+        (<span class="keyword">run</span> optimizations)))</code></pre>
+<p>Running more iterations does not help our above example per se,
+ but if we had started with a slightly more complex program to optimize...</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
 (<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)
 ; a + (b + (c + (d + (e + f))))
-(<span class="keyword">let</span> addition-chain (Add (Var "a") (Add (Var "b") (Add (Var "c") (Add (Var "d") (Add (Var "e") (Var "f")))))))
+(<span class="keyword">let</span> addition-chain 
+    (Add (Var "a") (Add (Var "b") 
+        (Add (Var "c") (Add (Var "d") 
+            (Add (Var "e") (Var "f")))))))
 ; x * 0
 (<span class="keyword">let</span> x-times-zero (Mul (Var "x") (Num zero)))
-(<span class="keyword">let</span> nonzero-expr (Add (Num one) (Add (Num one) (Add (Num one) (Add (Num one) x-times-zero)))))
+(<span class="keyword">let</span> nonzero-expr 
+    (Add (Num one) (Add (Num one) 
+        (Add (Num one) (Add (Num one) 
+            x-times-zero)))))
 (<span class="keyword">let</span> expr (Mul nonzero-expr (Div addition-chain nonzero-expr)))</code></pre>
 <p>For the purpose of this example, we add this rule</p>
 <pre><code class="language-egglog">(<span class="keyword">rewrite</span> (Mul x (Num zero)) (Num zero) :<span class="keyword">ruleset</span> optimizations)</code></pre>
-<p>Then, only running with <code>repeat 1</code>...</p>
+<p>To prove <code>expr</code> is equivalent to <code>addition-chian</code> by applying the cancellation law, 
+ we need to prove <code>nonzero-expr</code> is nonzero, which requires proving
+ <code>x-times-zero</code>'s bound.
+ To show <code>x-time-zero</code>'s bound, we need to apply an optimization rule to rewrite
+ it to 0.
+ In other words, this requires running analyses in between two runs of optimization rules
+ (the cancellation law and <code>Mul</code>'s identity law)</p>
+<p>Therefore, only running our schedule with one iteration (<code>repeat 1</code>) does not give us the optimal program.</p>
 <pre><code class="language-egglog">(<span class="keyword">push</span>)
 (<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 1
-        (<span class="keyword">seq</span>
-            (saturate (<span class="keyword">run</span> analysis))
-            (<span class="keyword">run</span> optimizations)
-         )
-    )
-)
+        (saturate (<span class="keyword">run</span> analysis))
+        (<span class="keyword">run</span> optimizations)))
 (<span class="keyword">extract</span> expr)
 (<span class="keyword">pop</span>)</code></pre>
-<p>does not give us the optimal program. Instead, we need to increase the iteration number.</p>
+<p>Instead, we need to increase the iteration number.</p>
 <pre><code class="language-egglog">(<span class="keyword">push</span>)
 (<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 2
-        (<span class="keyword">seq</span>
-            (saturate (<span class="keyword">run</span> analysis))
-            (<span class="keyword">run</span> optimizations)
-         )
-    )
-)
-(<span class="keyword">extract</span> expr)</code></pre>
-<p>Because it takes one iteration of <code>optimizations</code> to simplify <code>x-times-zero</code> to <code>zero</code>, and this is
- required to determine that <code>nonzero-expr</code> is actually <code>nonzero</code>.</p>
+        (saturate (<span class="keyword">run</span> analysis))
+        (<span class="keyword">run</span> optimizations)))
+(<span class="keyword">extract</span> expr)
+(<span class="keyword">pop</span>)</code></pre>
+<p><strong>Using custom schedulers</strong></p>
 <p>However, sometimes just having an iteration number does not give you enough control.
- As we can see from the <code>(print-size)</code>s above, adding one iteration can increase the size of the
- e-graph hyper-exponentially. </p>
-<p>To this end, egglog has an scheduler mechanism. A scheduler can decide which matches are important and need to be applied,
- while others can be delayed or skipped. To use scheduler, there are two operations: <code>let-scheduler</code> and <code>run-with</code>.
- <code>(let-scheduler sched ..)</code> instantiates a scheduler <code>sched</code>, and <code>(run-with sched ruleset)</code> rules a ruleset with that scheduler.</p>
-<p>Currently, <code>egglog-experimental</code> implements one scheduler, <code>back-off</code>. (We will add our own scheduler
- in Section 6.) The idea of <code>back-off</code> is that it will ban a rule from applying if that rule grows the
- e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.</p>
-<pre><code class="language-egglog">(<span class="keyword">pop</span>)
-(<span class="keyword">push</span>)</code></pre>
-<p>Let's go back to this example, and increase the number of iterations slightly.</p>
+ For example, for many rules, such as associativity and commutativity (AC), the size of the e-graph grows hyper-exponentially
+ with respect to the number of iterations.  </p>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
+<p>Let's go back to this example, and run for five iterations.</p>
 <pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 5
-        (<span class="keyword">seq</span>
-            (saturate (<span class="keyword">run</span> analysis))
-            (<span class="keyword">run</span> optimizations)
-         )
-    )
-)
+        (saturate (<span class="keyword">run</span> analysis))
+        (<span class="keyword">run</span> optimizations)))
 (<span class="keyword">print-size</span> Mul)</code></pre>
 <p>At iteration 5, the <code>Mul</code> function has size 582. However, if we bump that to 6,
- the size of the <code>Mul</code> function will increase to 13285! This is because the associativity
- is exponential and can easily blow up the e-graph in one iteration.</p>
-<p>This is where the back-off scheduler comes in handy. It will prevent the associativity rule
- from dominating the equality saturation, and will ban associativity for some iterations so
- that other rules can catch up.</p>
+ the size of the <code>Mul</code> function will increase to 13285! Therefore, the iteration number is too coarse 
+ of a granularity for defining the search space.</p>
+<p>To this end, egglog provides a scheduler mechanism. A scheduler can decide which matches are important and need to be applied,
+ while others can be delayed or skipped. To use scheduler, there are two operations: <code>let-scheduler</code> and <code>run-with</code>.
+ <code>(let-scheduler sched ..)</code> instantiates a scheduler <code>sched</code>, and <code>(run-with sched ruleset)</code> rules a ruleset with that scheduler.</p>
+<p>Currently, <code>egglog-experimental</code> implements one scheduler, <code>back-off</code>. (We will implement our own scheduler
+ in Section 6.) The idea of <code>back-off</code> is that it will ban a rule from applying if that rule grows the
+ e-graph too fast. The decision to ban is based on a threshold, which is initially small and increases as rules are banned.
+ This scheduler works well when the ruleset contains explosive rules like AC.</p>
+<p>In this example, the back-off scheduler can prevent the associativity rule
+ from dominating the equality saturation: when the the associativity rule (or any other rule) is fired too much,
+ the scheduler will automatically ban this rule for a few iterations, so that other rules can catch up.</p>
 <pre><code class="language-egglog">(<span class="keyword">pop</span>)
 (<span class="keyword">push</span>)
 (<span class="keyword">run-schedule</span>
     (<span class="keyword">let-scheduler</span> bo (back-off))
-    (<span class="keyword">repeat</span> 10 (<span class="keyword">run-with</span> bo optimizations))
-)
+    (<span class="keyword">repeat</span> 10 (<span class="keyword">run-with</span> bo optimizations)))
 (<span class="keyword">print-size</span> Mul)</code></pre>
+<p>It is important that the scheduler <code>bo</code> is instantiated outside the <code>repeat</code> loop, since each scheduler carries some state that is updated
+ when run. For example, the following schedule has a very semantics than the schedule above.</p>
+<pre><code> (run-schedule
+     (repeat 10
+         (let-scheduler bo (back-off))
+         (run-with bo optimizations)))
+</code></pre>
+<p>This schedule instantiates a (fresh) <code>back-off</code> scheduler for each <code>run-with</code>, so the ten iterations of rulesets are all run
+ with the initial configuration of the <code>back-off</code> scheduler, which has a very low threshold for banning rules.</p>
     </main>
     
     <footer>
