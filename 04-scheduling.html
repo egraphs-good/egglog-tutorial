@@ -240,8 +240,8 @@
  through <code>nonzero-expr</code>). We can build a more efficient <em>schedule</em>.</p>
 <pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
 <p><strong>Schedules</strong></p>
-<p>Start by saturating the analysis rules, fully propagating the <code>non-zero</code> information <em>without</em>
- adding any nodes to the e-graph.</p>
+<p>Our schedule starts by saturating the analysis rules, fully propagating the <code>non-zero</code> information <em>without</em>
+ adding any e-nodes to the e-graph.</p>
 <pre><code class="language-egglog">(<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span> analysis)))</code></pre>
 <p>Then, just run one iteration of the <code>optimizations</code> ruleset.</p>
 <pre><code class="language-egglog">(<span class="keyword">run</span> optimizations 1)</code></pre>
@@ -251,14 +251,13 @@
      (run optimizations))
 </code></pre>
 <p>This makes our check pass</p>
-<pre><code class="language-egglog">(<span class="keyword">check</span> (= expr addition-chain))</code></pre>
+<pre><code class="language-egglog">(<span class="keyword">check</span> (= expr addition-chain))
+(<span class="keyword">pop</span>)</code></pre>
 <p>While the above program is effective at optimizing that specific program, it would fail if
  we had a slightly more complex program where we had to interleave the optimizations and analyses
  to derive the optimal program. 
  For expressing more complex schedules like these, <code>egglog</code> supports a scheduling sub-language,
  with primitives <code>repeat</code>, <code>seq</code>, <code>saturate</code>, and <code>run</code>.</p>
-<pre><code class="language-egglog">(<span class="keyword">pop</span>)
-(<span class="keyword">push</span>)</code></pre>
 <p>The idea behind the following schedule is to always saturate analyses before running optimizations.
  This combination is wrapped in a <code>repeat</code> block to give us control over how long to run egglog.
  With <code>repeat 1</code> it is the same schedule as before, but now we can increase the iteration
@@ -266,13 +265,11 @@
 <pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 2
         (saturate (<span class="keyword">run</span> analysis))
-        (<span class="keyword">run</span> optimizations)))</code></pre>
+        (<span class="keyword">run</span> optimizations)))
+(<span class="keyword">pop</span>)</code></pre>
 <p>Running more iterations does not help our above example per se,
  but if we had started with a slightly more complex program to optimize...</p>
-<pre><code class="language-egglog">(<span class="keyword">pop</span>)
-(<span class="keyword">pop</span>)
-(<span class="keyword">push</span>)
-; a + (b + (c + (d + (e + f))))
+<pre><code class="language-egglog">; a + (b + (c + (d + (e + f))))
 (<span class="keyword">let</span> addition-chain 
     (Add (Var "a") (Add (Var "b") 
         (Add (Var "c") (Add (Var "d") 
@@ -313,13 +310,14 @@
 <p>However, sometimes just having an iteration number does not give you enough control.
  For example, for many rules, such as associativity and commutativity (AC), the size of the e-graph grows hyper-exponentially
  with respect to the number of iterations.  </p>
-<pre><code class="language-egglog">(<span class="keyword">push</span>)</code></pre>
 <p>Let's go back to this example, and run for five iterations.</p>
-<pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
+<pre><code class="language-egglog">(<span class="keyword">push</span>)
+(<span class="keyword">run-schedule</span>
     (<span class="keyword">repeat</span> 5
         (saturate (<span class="keyword">run</span> analysis))
         (<span class="keyword">run</span> optimizations)))
-(<span class="keyword">print-size</span> Mul)</code></pre>
+(<span class="keyword">print-size</span> Mul)
+(<span class="keyword">pop</span>)</code></pre>
 <p>At iteration 5, the <code>Mul</code> function has size 582. However, if we bump that to 6,
  the size of the <code>Mul</code> function will increase to 13285! Therefore, the iteration number is too coarse 
  of a granularity for defining the search space.</p>
@@ -333,9 +331,7 @@
 <p>In this example, the back-off scheduler can prevent the associativity rule
  from dominating the equality saturation: when the the associativity rule (or any other rule) is fired too much,
  the scheduler will automatically ban this rule for a few iterations, so that other rules can catch up.</p>
-<pre><code class="language-egglog">(<span class="keyword">pop</span>)
-(<span class="keyword">push</span>)
-(<span class="keyword">run-schedule</span>
+<pre><code class="language-egglog">(<span class="keyword">run-schedule</span>
     (<span class="keyword">let-scheduler</span> bo (back-off))
     (<span class="keyword">repeat</span> 10 (<span class="keyword">run-with</span> bo optimizations)))
 (<span class="keyword">print-size</span> Mul)</code></pre>

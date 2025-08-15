@@ -120,8 +120,8 @@
 
 ;; **Schedules**
 
-;; Start by saturating the analysis rules, fully propagating the `non-zero` information _without_
-;; adding any nodes to the e-graph.
+;; Our schedule starts by saturating the analysis rules, fully propagating the `non-zero` information _without_
+;; adding any e-nodes to the e-graph.
 (run-schedule (saturate (run analysis)))
 
 ;; Then, just run one iteration of the `optimizations` ruleset.
@@ -135,14 +135,14 @@
 
 ;; This makes our check pass
 (check (= expr addition-chain))
+(pop)
 
 ;; While the above program is effective at optimizing that specific program, it would fail if
 ;; we had a slightly more complex program where we had to interleave the optimizations and analyses
 ;; to derive the optimal program. 
 ;; For expressing more complex schedules like these, `egglog` supports a scheduling sub-language,
 ;; with primitives `repeat`, `seq`, `saturate`, and `run`.
-(pop)
-(push)
+
 
 ;; The idea behind the following schedule is to always saturate analyses before running optimizations.
 ;; This combination is wrapped in a `repeat` block to give us control over how long to run egglog.
@@ -152,12 +152,12 @@
     (repeat 2
         (saturate (run analysis))
         (run optimizations)))
+(pop)
 
 ;; Running more iterations does not help our above example per se,
 ;; but if we had started with a slightly more complex program to optimize...
-(pop)
-(pop)
-(push)
+
+
 ; a + (b + (c + (d + (e + f))))
 (let addition-chain 
     (Add (Var "a") (Add (Var "b") 
@@ -205,14 +205,15 @@
 ;; However, sometimes just having an iteration number does not give you enough control.
 ;; For example, for many rules, such as associativity and commutativity (AC), the size of the e-graph grows hyper-exponentially
 ;; with respect to the number of iterations.  
-(push)
 
 ;; Let's go back to this example, and run for five iterations.
+(push)
 (run-schedule
     (repeat 5
         (saturate (run analysis))
         (run optimizations)))
 (print-size Mul)
+(pop)
 
 ;; At iteration 5, the `Mul` function has size 582. However, if we bump that to 6,
 ;; the size of the `Mul` function will increase to 13285! Therefore, the iteration number is too coarse 
@@ -230,8 +231,7 @@
 ;; In this example, the back-off scheduler can prevent the associativity rule
 ;; from dominating the equality saturation: when the the associativity rule (or any other rule) is fired too much,
 ;; the scheduler will automatically ban this rule for a few iterations, so that other rules can catch up.
-(pop)
-(push)
+
 (run-schedule
     (let-scheduler bo (back-off))
     (repeat 10 (run-with bo optimizations)))
