@@ -14,6 +14,8 @@
 (let one (bigrat (bigint 1) (bigint 1)))
 (let two (bigrat (bigint 2) (bigint 1)))
 
+;; **Rulesets**
+
 ;; Different from lesson 3, we organize our rules into "rulesets"
 ;; A ruleset is exactly what it sounds like; a set of rules.
 ;; We can declare rulesets using the `ruleset` command.
@@ -22,8 +24,9 @@
 
 ;; We can add rules to rulesets using the `:ruleset` annotation on `rule`s, `rewrite`s, and `birewrite`s.
 ;; Leaving off `:ruleset` causes the rule to be added to the default ruleset, which is what we've shown so far.
-;; We can run rulesets using `(run ruleset iters)`.
-;; The `leq` rules are purely analysis rules, because they don't add any new `Expr` nodes to the e-graph.
+;; We can run rulesets using `(run ruleset iters)`, or `(run iters)` for running the default ruleset.
+;;
+;; Here, we add `leq` rules to the `analysis` ruleset, because they don't add new `Expr` nodes to the e-graph.
 (relation leq (Expr Expr))
 (rule ((leq e1 e2) (leq e2 e3)) ((leq e1 e3)) :ruleset analysis)
 (rule ((= e1 (Num n1)) (= e2 (Num n2)) (<= n1 n2)) ((leq e1 e2)) :ruleset analysis)
@@ -32,7 +35,7 @@
       ((leq e1 e2))
       :ruleset analysis)
 
-;; In contrast, these axiomatic rules are doing optimizations.
+;; In contrast, the following axiomatic rules are doing optimizations, so we add them to the `optimizations` ruleset.
 (birewrite (Add x (Add y z)) (Add (Add x y) z) :ruleset optimizations)
 (birewrite (Mul x (Mul y z)) (Mul (Mul x y) z) :ruleset optimizations)
 (rewrite (Add x y) (Add y x) :ruleset optimizations)
@@ -43,15 +46,13 @@
 (rewrite (Add (Num a) (Num b)) (Num (+ a b)) :ruleset optimizations)
 (rewrite (Mul (Num a) (Num b)) (Num (* a b)) :ruleset optimizations)
 
-;; It is tedious and error-prone to manually annotate each rule with a ruleset.
-;; `egglog-experimental` provides a convenience syntax `with-ruleset`:
+;; It is tedious and error-prone to manually annotate each rule with a ruleset,
+;; so `egglog-experimental` provides a convenience syntax `with-ruleset`:
 ;;
-;; ```
-;; (with-ruleset optimizations
-;;     (birewrite (Add x (Add y z)) (Add (Add x y) z))
-;;     ...
-;; )
-;; ```
+;;     (with-ruleset optimizations
+;;       (birewrite (Add x (Add y z)) (Add (Add x y) z))
+;;       ...
+;;     )
 ;;
 ;; From now on, we will use this syntax.
 
@@ -82,7 +83,7 @@
     (rule ((< (upper-bound e) zero)) ((non-zero e)))
     (rule ((> (lower-bound e) zero)) ((non-zero e)))
 )
-;; Finally, we have the rules that depend on analyses but actually do optimization.
+;; Finally, we have optimization rules that depend on the analysis rules we defined above.
 (with-ruleset optimizations
     (rewrite (Div x x)         (Num one) :when ((non-zero x)))
     (rewrite (Mul x (Div y x)) y         :when ((non-zero x)))
@@ -92,20 +93,32 @@
 ;; a cancelling division.
 (push)
 ; a + (b + (c + (d + (e + f))))
-(let addition-chain (Add (Var "a") (Add (Var "b") (Add (Var "c") (Add (Var "d") (Add (Var "e") (Var "f")))))))
+(let addition-chain 
+    (Add (Var "a") (Add (Var "b") 
+        (Add (Var "c") (Add (Var "d") 
+            (Add (Var "e") (Var "f")))))))
 ; 1 + 1 + 1 + 1 + 2
-(let nonzero-expr (Add (Num one) (Add (Num one) (Add (Num one) (Add (Num one) (Num two))))))
+(let nonzero-expr 
+    (Add (Num one) (Add (Num one) 
+        (Add (Num one) (Add (Num one) (Num two))))))
 (let expr (Mul nonzero-expr (Div addition-chain nonzero-expr)))
 
-;; We want the following check to pass after running the rules
+;; We want the following check to pass after running the rules.
 (fail (check (= expr addition-chain)))
 
-;; If we try to run both rulesets directly, egglog will spend lots of effort reassociating and
+;; To make this check pass, we have to first discover that `nonzero-expr` is indeed non-zero,
+;; which allows the rule from `(Mul x (Div y x))` to `y` to fire.
+;; On the other hand, if we apply the optimization rules, we risk the exponential blowup from 
+;; the associative and commutative permutations of the `addition-chain`.
+
+;; Therefore, if we try to run both rulesets directly, egglog will spend lots of effort reassociating and
 ;; commuting the terms in the `addition-chain`, even though the optimization that we actually
-;; want to run (cancelling division) only takes one iteration. However, that optimization requires
-;; knowing a fact that takes multiple iterations to compute (propagating lower- and upper-bounds
-;; through `nonzero-expr`). Thus, we can build a more efficient schedule for this specific program.
+;; want to run only takes one iteration. However, that optimization requires knowing a fact
+;; that takes multiple iterations to compute (propagating lower- and upper-bounds
+;; through `nonzero-expr`). We can build a more efficient *schedule*.
 (push)
+
+;; **Schedules**
 
 ;; Start by saturating the analysis rules, fully propagating the `non-zero` information _without_
 ;; adding any nodes to the e-graph.
@@ -114,111 +127,123 @@
 ;; Then, just run one iteration of the `optimizations` ruleset.
 (run optimizations 1)
 
+;; Or equivalently,
+;; 
+;;     (run-schedule 
+;;         (saturate (run analysis))
+;;         (run optimizations))
+
 ;; This makes our check pass
 (check (= expr addition-chain))
-;; Print the size of the e-graph and the best expression reached for later.
-(print-size)
-(extract expr)
 
 ;; While the above program is effective at optimizing that specific program, it would fail if
-;; we had a program where we had to interleave the optimizations and analyses. There is a common
-;; pattern of schedules which we use to fix this, which use all four of the variants in our scheduling
-;; language: `repeat`, `seq`, `saturate`, and `run`.
+;; we had a slightly more complex program where we had to interleave the optimizations and analyses
+;; to derive the optimal program. 
+;; For expressing more complex schedules like these, `egglog` supports a scheduling sub-language,
+;; with primitives `repeat`, `seq`, `saturate`, and `run`.
 (pop)
 (push)
 
-;; The idea behind this schedule is to always saturate analyses before running optimizations.
-;; We then wrap that schedule in a `repeat` block to give us control over how long to run egglog.
-;; Using `repeat 1` gives us the same schedule as before, but now we can increase the iteration
-;; count if we want better results and have the time/space budget for it.
+;; The idea behind the following schedule is to always saturate analyses before running optimizations.
+;; This combination is wrapped in a `repeat` block to give us control over how long to run egglog.
+;; With `repeat 1` it is the same schedule as before, but now we can increase the iteration
+;; count if we want to optimize harder with more time and space budget.
 (run-schedule
     (repeat 2
-        (seq
-            (saturate (run analysis))
-            (run optimizations)
-         )
-    )
-)
+        (saturate (run analysis))
+        (run optimizations)))
 
-;; Running more iterations does not help this example per se,
-;; but if we had started with a slightly different program to optimize...
+;; Running more iterations does not help our above example per se,
+;; but if we had started with a slightly more complex program to optimize...
 (pop)
 (pop)
 (push)
 ; a + (b + (c + (d + (e + f))))
-(let addition-chain (Add (Var "a") (Add (Var "b") (Add (Var "c") (Add (Var "d") (Add (Var "e") (Var "f")))))))
+(let addition-chain 
+    (Add (Var "a") (Add (Var "b") 
+        (Add (Var "c") (Add (Var "d") 
+            (Add (Var "e") (Var "f")))))))
 ; x * 0
 (let x-times-zero (Mul (Var "x") (Num zero)))
-(let nonzero-expr (Add (Num one) (Add (Num one) (Add (Num one) (Add (Num one) x-times-zero)))))
+(let nonzero-expr 
+    (Add (Num one) (Add (Num one) 
+        (Add (Num one) (Add (Num one) 
+            x-times-zero)))))
 (let expr (Mul nonzero-expr (Div addition-chain nonzero-expr)))
 
 ;; For the purpose of this example, we add this rule
 (rewrite (Mul x (Num zero)) (Num zero) :ruleset optimizations)
 
-;; Then, only running with `repeat 1`...
+;; To prove `expr` is equivalent to `addition-chian` by applying the cancellation law, 
+;; we need to prove `nonzero-expr` is nonzero, which requires proving
+;; `x-times-zero`'s bound.
+;; To show `x-time-zero`'s bound, we need to apply an optimization rule to rewrite
+;; it to 0.
+;; In other words, this requires running analyses in between two runs of optimization rules
+;; (the cancellation law and `Mul`'s identity law)
+
+;; Therefore, only running our schedule with one iteration (`repeat 1`) does not give us the optimal program.
 (push)
 (run-schedule
     (repeat 1
-        (seq
-            (saturate (run analysis))
-            (run optimizations)
-         )
-    )
-)
+        (saturate (run analysis))
+        (run optimizations)))
 (extract expr)
 (pop)
 
-;; does not give us the optimal program. Instead, we need to increase the iteration number.
+;; Instead, we need to increase the iteration number.
 (push)
 (run-schedule
     (repeat 2
-        (seq
-            (saturate (run analysis))
-            (run optimizations)
-         )
-    )
-)
+        (saturate (run analysis))
+        (run optimizations)))
 (extract expr)
+(pop)
 
-;; Because it takes one iteration of `optimizations` to simplify `x-times-zero` to `zero`, and this is
-;; required to determine that `nonzero-expr` is actually `nonzero`.
+;; **Using custom schedulers**
 
 ;; However, sometimes just having an iteration number does not give you enough control.
-;; As we can see from the `(print-size)`s above, adding one iteration can increase the size of the
-;; e-graph hyper-exponentially. 
-;;
-;; To this end, egglog has an scheduler mechanism. A scheduler can decide which matches are important and need to be applied,
-;; while others can be delayed or skipped. To use scheduler, there are two operations: `let-scheduler` and `run-with`.
-;; `(let-scheduler sched ..)` instantiates a scheduler `sched`, and `(run-with sched ruleset)` rules a ruleset with that scheduler.
-;;
-;; Currently, `egglog-experimental` implements one scheduler, `back-off`. (We will add our own scheduler
-;; in Section 6.) The idea of `back-off` is that it will ban a rule from applying if that rule grows the
-;; e-graph too fast. This scheduler works well when the ruleset contains explosive rules like associativity.
-(pop)
+;; For example, for many rules, such as associativity and commutativity (AC), the size of the e-graph grows hyper-exponentially
+;; with respect to the number of iterations.  
 (push)
 
-;; Let's go back to this example, and increase the number of iterations slightly.
+;; Let's go back to this example, and run for five iterations.
 (run-schedule
     (repeat 5
-        (seq
-            (saturate (run analysis))
-            (run optimizations)
-         )
-    )
-)
+        (saturate (run analysis))
+        (run optimizations)))
 (print-size Mul)
 
 ;; At iteration 5, the `Mul` function has size 582. However, if we bump that to 6,
-;; the size of the `Mul` function will increase to 13285! This is because the associativity
-;; is exponential and can easily blow up the e-graph in one iteration.
+;; the size of the `Mul` function will increase to 13285! Therefore, the iteration number is too coarse 
+;; of a granularity for defining the search space.
 
-;; This is where the back-off scheduler comes in handy. It will prevent the associativity rule
-;; from dominating the equality saturation, and will ban associativity for some iterations so
-;; that other rules can catch up.
+;; To this end, egglog provides a scheduler mechanism. A scheduler can decide which matches are important and need to be applied,
+;; while others can be delayed or skipped. To use scheduler, there are two operations: `let-scheduler` and `run-with`.
+;; `(let-scheduler sched ..)` instantiates a scheduler `sched`, and `(run-with sched ruleset)` rules a ruleset with that scheduler.
+;;
+;; Currently, `egglog-experimental` implements one scheduler, `back-off`. (We will implement our own scheduler
+;; in Section 6.) The idea of `back-off` is that it will ban a rule from applying if that rule grows the
+;; e-graph too fast. The decision to ban is based on a threshold, which is initially small and increases as rules are banned.
+;; This scheduler works well when the ruleset contains explosive rules like AC.
+
+;; In this example, the back-off scheduler can prevent the associativity rule
+;; from dominating the equality saturation: when the the associativity rule (or any other rule) is fired too much,
+;; the scheduler will automatically ban this rule for a few iterations, so that other rules can catch up.
 (pop)
 (push)
 (run-schedule
     (let-scheduler bo (back-off))
-    (repeat 10 (run-with bo optimizations))
-)
+    (repeat 10 (run-with bo optimizations)))
 (print-size Mul)
+
+;; It is important that the scheduler `bo` is instantiated outside the `repeat` loop, since each scheduler carries some state that is updated
+;; when run. For example, the following schedule has a very semantics than the schedule above.
+;;
+;;     (run-schedule
+;;         (repeat 10
+;;             (let-scheduler bo (back-off))
+;;             (run-with bo optimizations)))
+;;
+;; This schedule instantiates a (fresh) `back-off` scheduler for each `run-with`, so the ten iterations of rulesets are all run
+;; with the initial configuration of the `back-off` scheduler, which has a very low threshold for banning rules.
