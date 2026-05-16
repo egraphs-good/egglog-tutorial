@@ -136,7 +136,7 @@
     
     <main>
         <h1># Datalog</h1>
-        <p>Datalog is a relational language for deductive reasoning. In the last lesson, we write our first 
+        <p>Datalog is a relational language for deductive reasoning. In the last lesson, we wrote our first 
  equality saturation program in egglog, but you can also write rules for deductive reasoning a la Datalog.
  In this lesson, we will write several classic Datalog programs in egglog. One of the benifits
  of egglog being a language for program optimization is that it can talk about terms natively,
@@ -165,8 +165,8 @@
 <pre><code class="language-egglog">(<span class="keyword">rule</span> ((edge a b))
       ((path a b)))</code></pre>
 <p>A rule has the form <code>(rule (atom1 atom2 ..) (action1 action2 ..))</code>.</p>
-<p>For the rule we have just defined, the only atom is <code>(path a b)</code>, which asks egglog to search
- for possible <code>a</code> and <code>b</code>s such that <code>(path a b)</code> is a fact in the database.</p>
+<p>For the rule we have just defined, the only atom is <code>(edge a b)</code>, which asks egglog to search
+ for possible <code>a</code> and <code>b</code>s such that <code>(edge a b)</code> is a fact in the database.</p>
 <p>We call the first part the "query" of a rule, and the second part the "body" of a rule.
  In Datalog terminology, confusingly, the first part is called the "body" of the rule
  while the second part is called the "head" of the rule. This is because Datalog rules
@@ -206,7 +206,7 @@
 <p>Here, we use a new keyword called <code>function</code> to define a table that respects the functional dependency.
  A relation is just a function with output domain <code>Unit</code>.
  By defining <code>edge</code> and <code>path</code> with <code>function</code>, we can associate a length to each path.</p>
-<p>What happens it the same tuple of a function is mapped to two values?
+<p>What happens if the same tuple of a function is mapped to two values?
  In the case of relation, this is easy: <code>Unit</code> only has one value, so the two values must be identical.
  But in general, that would be a violation of functional dependency, the property that <code>a = b</code> implies <code>f(a) = f(b)</code>.
  Egglog allows us to specify how to reconcile two values that are mapped from the same tuple using <em>merge expressions</em>.</p>
