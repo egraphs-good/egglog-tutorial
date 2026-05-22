@@ -1,0 +1,104 @@
+(datatype Scalar
+    (Num i64)
+    (SVar String)
+    (SAdd Scalar Scalar)
+    (SMul Scalar Scalar)
+    (SSub Scalar Scalar)
+    (SDiv Scalar Scalar))
+
+(with-dynamic-cost
+    (datatype Matrix
+        (MVar String)
+        (Scale Scalar Matrix)
+        (MAdd Matrix Matrix)
+        (MMul Matrix Matrix)
+    )
+)
+
+(relation MatrixDim (String i64 i64))
+
+(ruleset optimization)
+(ruleset analysis)
+
+;; Commutativity
+(rewrite (SAdd x y) (SAdd y x) :ruleset optimization)
+(rewrite (SMul x y) (SMul y x) :ruleset optimization)
+(rewrite (MAdd A B) (MAdd B A) :ruleset optimization)
+
+;; Associativity
+(birewrite (SAdd (SAdd x y) z) (SAdd x (SAdd y z)) :ruleset optimization)
+(birewrite (SMul (SMul x y) z) (SMul x (SMul y z)) :ruleset optimization)
+(birewrite (Scale y (Scale x A)) (Scale (SMul x y) A) :ruleset optimization)
+(birewrite (MAdd (MAdd A B) C) (MAdd A (MAdd B C)) :ruleset optimization)
+(birewrite (MMul (MMul A B) C) (MMul A (MMul B C)) :ruleset optimization)
+
+;; Distributivity
+(birewrite (SMul x (SAdd y z)) (SAdd (SMul x y) (SMul x z)) :ruleset optimization)
+(birewrite (MMul A (MAdd B C)) (MAdd (MMul A B) (MMul A C)) :ruleset optimization)
+(birewrite (Scale x (MAdd A B)) (MAdd (Scale x A) (Scale x B)) :ruleset optimization)
+(birewrite (Scale (SAdd x y) A) (MAdd (Scale x A) (Scale y A)) :ruleset optimization)
+
+(rewrite (MMul (Scale a A) B) (Scale a (MMul A B)) :ruleset optimization)
+(rewrite (MMul A (Scale a B)) (Scale a (MMul A B)) :ruleset optimization)
+
+;; Identity
+(rewrite (SAdd x (Num 0)) x :ruleset optimization)
+(rewrite (SMul x (Num 1)) x :ruleset optimization)
+(rewrite (SMul x (Num 0)) (Num 0) :ruleset optimization)
+
+;; Analysis for dimensions of matrices
+(function nrows (Matrix) i64 :no-merge)
+(function ncols (Matrix) i64 :no-merge)
+
+(rule ((MatrixDim m i j))
+    ((set (nrows (MVar m)) i)
+    (set (ncols (MVar m)) j))
+    :ruleset analysis)
+
+(rule (
+    (= e (Scale x A))
+    (= i (nrows A)) (= j (ncols A))
+) (
+    (set (nrows e) i)
+    (set (ncols e) j)
+) :ruleset analysis)
+
+(rule (
+    (= e (MAdd A B))
+    (= i (nrows A)) (= j (ncols A))
+    (= i (nrows B)) (= j (ncols B))
+) (
+    (set (nrows e) i)
+    (set (ncols e) j)
+) :ruleset analysis)
+
+(rule (
+    (= e (MMul A B))
+    (= i (nrows A)) (= k (ncols A))
+    (= k (nrows B)) (= j (ncols B))
+) (
+    (set (nrows e) i)
+    (set (ncols e) j)
+) :ruleset analysis)
+
+(rule ((= e (Scale a A))
+    (= n (nrows A))
+    (= m (ncols A))
+) (
+    (set-cost (Scale a A) (* n m))
+) :ruleset analysis)
+
+(rule ((= e (MAdd A B))
+    (= n (nrows A))
+    (= m (ncols A))
+) (
+    (set-cost (MAdd A B) (* n m))
+) :ruleset analysis)
+
+(rule ((= e (MMul A B))
+    (= n (nrows A))
+    (= k (ncols A))
+    (= m (ncols B))
+) (
+    (set-cost (MMul A B) (* (* n m) k))
+) :ruleset analysis)

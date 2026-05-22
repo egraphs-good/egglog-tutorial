@@ -7,7 +7,7 @@ edition = "2021"
 lalrpop-util = { version = "0.22.2", features = [
     "lexer",
 ] }
-egglog-experimental = { git = "https://github.com/egraphs-good/egglog-experimental.git", rev = "202078f" }
+egglog-experimental = { git = "https://github.com/egraphs-good/egglog-experimental.git", rev = "a0a911f" }
 regex = "1.11.1"
 
 [build-dependencies]

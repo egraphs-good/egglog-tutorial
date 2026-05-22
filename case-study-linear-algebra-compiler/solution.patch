@@ -1,0 +1,369 @@
+--- src/main.rs
++++ src/main.rs
+@@ -1,5 +1,4 @@
+ #![allow(dead_code)]
+-#![allow(unreachable_code)]
+ #![allow(unused_imports)]
+ #![allow(unused_mut)]
+ #![allow(unused_variables)]
+@@ -24,7 +23,7 @@
+ use crate::util::*;
+ 
+ fn egglog_program() -> &'static str {
+-    include_str!("defn.egg")
++    include_str!("defn.solution.egg")
+ }
+ 
+ fn main() {
+@@ -44,118 +43,85 @@
+         }
+     };
+ 
+-    // Problem  1: run defn.egg
+-    //
+-    // Create a new experimental EGraph with `new_experimental_egraph()` and run
+-    // the egglog program from defn.egg using
+-    //     `egraph.parse_and_run_program(None, program)`.
++    // Problem  1
+     let mut egraph = new_experimental_egraph();
+-    todo!("Problem 1");
++    egraph.parse_and_run_program(None, egglog_program()).unwrap();
+ 
+-    // Problem  2:
+-    //
+-    // For each variable declaration in the input program,
+-    // bind the egglog variable x to either (MVar x) or (SVar x)
+-    //
+-    // For each matrix declaration, additionally insert its dimension
+-    // information into the "MatrixDim" relation in the E-graph:
+-    //
+-    //    (relation MatrixDim (String i64 i64))
+-    //
+-    // Hint: use `egraph.parse_and_run_program(None, &format!("..."))`.
++    // Problem  2
+     for decl in core_bindings.declares.iter() {
+         let x = &decl.var;
+         if let Type::Matrix { nrows, ncols } = decl.ty {
+-            todo!("Problem 2")
++            egraph
++                .parse_and_run_program(
++                    None,
++                    &format!(
++                        "(let {x} (MVar \"{x}\")) (MatrixDim \"{x}\" {nrows} {ncols})"
++                    ),
++                )
++                .unwrap();
+         } else {
+-            todo!("Problem 2")
++            egraph
++                .parse_and_run_program(None, &format!("(let {x} (SVar \"{x}\"))"))
++                .unwrap();
+         }
+     }
+ 
+-    // Problem  3:
+-    //
+-    // For each variable assignment in the input program,
+-    // bind the egglog variable to its corresponding expression.
+-    //
+-    // We have provided [`to_egglog_expr`] in util.rs that converts a [`CoreExpr`]
+-    // to an egglog AST expression [`egglog::ast::Expr`].
+-    //
+-    // To run a `let` command, build a
+-    //     Command::Action(Action::Let(span!(), name, expr))
+-    // and pass it to `egraph.run_program(vec![cmd])`.
++    // Problem  3
+     for bind in core_bindings.bindings.iter() {
+         let var = &bind.var;
+-        let expr = &bind.expr;
+-
+-        todo!("Problem 3")
++        let expr = to_egglog_expr(&bind.expr);
++        let cmd = Command::Action(Action::Let(span!(), var.clone(), expr));
++        egraph.run_program(vec![cmd]).unwrap();
++    }
++
++    // Problem  6: saturate analysis before each optimization step (replaces Problem 4's `(run 20)`)
++    egraph
++        .parse_and_run_program(
++            None,
++            "(run-schedule (repeat 20 (saturate analysis) (run optimization)))",
++        )
++        .unwrap();
++
++    // Problem  7: use FirstNScheduler for the optimization ruleset
++    let scheduler_id = egraph.add_scheduler(Box::new(FirstNScheduler { n: 3 }));
++    for _ in 0..20 {
++        loop {
++            let report = egraph.step_rules("analysis").unwrap();
++            if report.can_stop {
++                break;
++            }
++        }
++        let report = egraph
++            .step_rules_with_scheduler(scheduler_id, "optimization")
++            .unwrap();
++        if report.can_stop {
++            break;
++        }
+     }
+ 
+-    // Problem  4:
+-    //
+-    // Now we have inserted all the ASTs and definitions. We will run our rules.
+-    // To start with, let's run our rules 20 times with `(run 20)`:
+-    //
+-    //     egraph.parse_and_run_program(None, "(run 20)").unwrap();
+-
+-    todo!("Problem 4");
+-
+-    // Problem  5:
+-    //
+-    // Extract the optimized program using `DynamicCostModel` and `Extractor`.
+-    //
+-    // Steps:
+-    //   a) Evaluate the output variable to get its (ArcSort, Value):
+-    //        egraph.eval_expr(&exprs::var(&output.var))
+-    //   b) Compute an extractor:
+-    //        Extractor::compute_costs_from_rootsorts(Some(vec![sort]), &egraph, DynamicCostModel)
+-    //   c) Extract the best term:
+-    //        extractor.extract_best(&egraph, &mut termdag, value)
+-    //   d) Convert to CoreBindings using `termdag_to_bindings`
++    // Problem  5
+     let output = core_bindings.bindings.last().unwrap();
+-    let bindings: CoreBindings = todo!("Problem 5");
++    let (sort, value) = egraph.eval_expr(&exprs::var(&output.var)).unwrap();
++    let extractor = Extractor::compute_costs_from_rootsorts(
++        Some(vec![sort]),
++        &egraph,
++        DynamicCostModel,
++    );
++    let mut termdag = TermDag::default();
++    let (_cost, term_id) = extractor
++        .extract_best(&egraph, &mut termdag, value)
++        .unwrap();
++    let bindings = termdag_to_bindings(
++        core_bindings.declares.clone(),
++        &termdag,
++        termdag.get(term_id),
++    );
+ 
+     // Print the optimized bindings
+     println!("{bindings}");
+-
+-    // Problem  6:
+-    //
+-    // Break down the rules into optimization rules and analysis rules by adding
+-    // `:ruleset optimization` and `:ruleset analysis` annotations in defn.egg,
+-    // and declaring the rulesets:
+-    //
+-    //     (ruleset optimization)
+-    //     (ruleset analysis)
+-    //
+-    // Then replace `(run 20)` above with a schedule that:
+-    //   - Saturates the analysis rules before each optimization step
+-    //   - Runs the optimization rules once per iteration
+-    //
+-    // Hint: use `(run-schedule (repeat 20 (saturate analysis) (run optimization)))`.
+-    //
+-    // Also update `egglog_program()` to include your updated defn file.
+-
+-    // Problem  7:
+-    //
+-    // Fill in the blanks for the [`FirstNScheduler`] below. FirstNScheduler
+-    // applies at most `n` matches of a rule in each iteration. Compared
+-    // to the default scheduler, it allows the E-graph to grow more gently.
+-    //
+-    // Register the scheduler with the egraph:
+-    //
+-    //     let scheduler_id = egraph.add_scheduler(Box::new(FirstNScheduler { n: 3 }));
+-    //
+-    // Then use `egraph.step_rules_with_scheduler(scheduler_id, "optimization")`
+-    // inside a loop to run the optimization ruleset with the scheduler.
+-    //
+-    // Update Problem 6's schedule to use this scheduler for optimization rules.
+ }
+ 
+-// Problem  7:
+-//
+-// Implement the `filter_matches` method.
+-// FirstNScheduler should apply at most `n` matches of a rule per iteration:
+-//   - If there are <= n matches: apply all of them, return false (done).
+-//   - If there are > n matches: apply the first n, return true (more work remains).
++// Problem  7: FirstNScheduler implementation
+ #[derive(Clone)]
+ struct FirstNScheduler {
+     n: usize,
+@@ -163,25 +129,29 @@
+ 
+ impl Scheduler for FirstNScheduler {
+     fn filter_matches(&mut self, _rule: &str, _ruleset: &str, matches: &mut Matches) -> bool {
+-        todo!("Problem 7")
++        if matches.match_size() <= self.n {
++            matches.choose_all();
++            false
++        } else {
++            for i in 0..self.n {
++                matches.choose(i);
++            }
++            true
++        }
+     }
+ }
+ 
+-// Problem  8:
+-//
+-// We are going to define an alternative cost model that assigns the *depth*
+-// of an AST as its cost. An extractor using this model will prefer shallower terms.
+-//
+-// The cost of a compound node is: max(children_costs) + enode_cost
+-// The cost of a leaf (primitive) is: 0
++// Problem  8: AstDepthCostModel
+ //
+-// Use this cost model in the extractor from Problem 5 instead of DynamicCostModel.
++// The cost of a term is its AST depth (the length of the longest root-to-leaf path).
++// The extractor therefore prefers the shallowest equivalent term.
+ pub struct AstDepthCostModel;
+ 
+ pub type C = usize;
+ impl CostModel<C> for AstDepthCostModel {
+     fn fold(&self, _head: &str, children_cost: &[C], head_cost: C) -> C {
+-        todo!("Problem 8")
++        let max_child = children_cost.iter().copied().max().unwrap_or(0);
++        max_child.saturating_add(head_cost)
+     }
+ 
+     fn enode_cost(
+@@ -190,7 +160,7 @@
+         _func: &egglog::Function,
+         _row: &egglog::FunctionRow,
+     ) -> C {
+-        todo!("Problem 8")
++        1
+     }
+ 
+     fn container_cost(
+@@ -200,7 +170,7 @@
+         _value: egglog::Value,
+         element_costs: &[C],
+     ) -> C {
+-        todo!("Problem 8")
++        element_costs.iter().copied().max().unwrap_or(0)
+     }
+ 
+     fn base_value_cost(
+@@ -209,6 +179,6 @@
+         _sort: &egglog::ArcSort,
+         _value: egglog::Value,
+     ) -> C {
+-        todo!("Problem 8")
++        0
+     }
+ }
+--- /dev/null
++++ src/defn.solution.egg
+@@ -0,0 +1,104 @@
++(datatype Scalar
++    (Num i64)
++    (SVar String)
++    (SAdd Scalar Scalar)
++    (SMul Scalar Scalar)
++    (SSub Scalar Scalar)
++    (SDiv Scalar Scalar))
++
++(with-dynamic-cost
++    (datatype Matrix
++        (MVar String)
++        (Scale Scalar Matrix)
++        (MAdd Matrix Matrix)
++        (MMul Matrix Matrix)
++    )
++)
++
++(relation MatrixDim (String i64 i64))
++
++(ruleset optimization)
++(ruleset analysis)
++
++;; Commutativity
++(rewrite (SAdd x y) (SAdd y x) :ruleset optimization)
++(rewrite (SMul x y) (SMul y x) :ruleset optimization)
++(rewrite (MAdd A B) (MAdd B A) :ruleset optimization)
++
++;; Associativity
++(birewrite (SAdd (SAdd x y) z) (SAdd x (SAdd y z)) :ruleset optimization)
++(birewrite (SMul (SMul x y) z) (SMul x (SMul y z)) :ruleset optimization)
++(birewrite (Scale y (Scale x A)) (Scale (SMul x y) A) :ruleset optimization)
++(birewrite (MAdd (MAdd A B) C) (MAdd A (MAdd B C)) :ruleset optimization)
++(birewrite (MMul (MMul A B) C) (MMul A (MMul B C)) :ruleset optimization)
++
++;; Distributivity
++(birewrite (SMul x (SAdd y z)) (SAdd (SMul x y) (SMul x z)) :ruleset optimization)
++(birewrite (MMul A (MAdd B C)) (MAdd (MMul A B) (MMul A C)) :ruleset optimization)
++(birewrite (Scale x (MAdd A B)) (MAdd (Scale x A) (Scale x B)) :ruleset optimization)
++(birewrite (Scale (SAdd x y) A) (MAdd (Scale x A) (Scale y A)) :ruleset optimization)
++
++(rewrite (MMul (Scale a A) B) (Scale a (MMul A B)) :ruleset optimization)
++(rewrite (MMul A (Scale a B)) (Scale a (MMul A B)) :ruleset optimization)
++
++;; Identity
++(rewrite (SAdd x (Num 0)) x :ruleset optimization)
++(rewrite (SMul x (Num 1)) x :ruleset optimization)
++(rewrite (SMul x (Num 0)) (Num 0) :ruleset optimization)
++
++;; Analysis for dimensions of matrices
++(function nrows (Matrix) i64 :no-merge)
++(function ncols (Matrix) i64 :no-merge)
++
++(rule ((MatrixDim m i j))
++    ((set (nrows (MVar m)) i)
++    (set (ncols (MVar m)) j))
++    :ruleset analysis)
++
++(rule (
++    (= e (Scale x A))
++    (= i (nrows A)) (= j (ncols A))
++) (
++    (set (nrows e) i)
++    (set (ncols e) j)
++) :ruleset analysis)
++
++(rule (
++    (= e (MAdd A B))
++    (= i (nrows A)) (= j (ncols A))
++    (= i (nrows B)) (= j (ncols B))
++) (
++    (set (nrows e) i)
++    (set (ncols e) j)
++) :ruleset analysis)
++
++(rule (
++    (= e (MMul A B))
++    (= i (nrows A)) (= k (ncols A))
++    (= k (nrows B)) (= j (ncols B))
++) (
++    (set (nrows e) i)
++    (set (ncols e) j)
++) :ruleset analysis)
++
++(rule ((= e (Scale a A))
++    (= n (nrows A))
++    (= m (ncols A))
++) (
++    (set-cost (Scale a A) (* n m))
++) :ruleset analysis)
++
++(rule ((= e (MAdd A B))
++    (= n (nrows A))
++    (= m (ncols A))
++) (
++    (set-cost (MAdd A B) (* n m))
++) :ruleset analysis)
++
++(rule ((= e (MMul A B))
++    (= n (nrows A))
++    (= k (ncols A))
++    (= m (ncols B))
++) (
++    (set-cost (MMul A B) (* (* n m) k))
++) :ruleset analysis)
