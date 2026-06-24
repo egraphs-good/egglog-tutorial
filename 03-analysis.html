@@ -205,9 +205,9 @@
 <pre><code class="language-egglog">(<span class="keyword">let</span> expr1 (Add (Var "y") (Add (Num two) (Var "x"))))
 (<span class="keyword">let</span> expr2 (Add (Add (Add (Var "x") (Var "y")) (Num one)) (Num two)))
 
-(<span class="keyword">fail</span> (<span class="keyword">check</span> (leq e1 e2)))
+(<span class="keyword">fail</span> (<span class="keyword">check</span> (leq expr1 expr2)))
 (<span class="keyword">run-schedule</span> (saturate (<span class="keyword">run</span>)))
-(<span class="keyword">check</span> (leq e1 e2)) ; should pass</code></pre>
+(<span class="keyword">check</span> (leq expr1 expr2)) ; should pass</code></pre>
 <p>A useful special case of the leq analysis is if an expression is upper bounded 
  or lower bounded by certain numbers, i.e., interval analysis:</p>
 <pre><code class="language-egglog">(<span class="keyword">function</span> upper-bound (Expr) BigRat :merge (min old new))
